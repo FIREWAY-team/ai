@@ -35,7 +35,7 @@ def test_read_from_file_builds_reading(monkeypatch, tmp_path):
 
     assert reading["cctv_id"] == "cam_l1"
     assert reading["edge_id"] == "edge-1"
-    assert reading["still_url"] == image_path
+    assert reading["still_public_url"] == image_path
     assert reading["wall_width_m"] == 4.2
     assert reading["verdict"] == {"pump-3.5": "PASS", "pump-8": "UNCERTAIN"}
     assert reading["source_meta"] == {"adapter": "file"}
@@ -59,7 +59,7 @@ def test_read_from_http_builds_reading(monkeypatch):
         camera_height_px=10.0,
     )
 
-    assert reading["still_url"] == "https://example.internal/cam1/still.jpg"
+    assert reading["still_public_url"] == "https://example.internal/cam1/still.jpg"
     assert reading["source_meta"] == {"adapter": "http"}
     assert reading["effective_width_m"] == 3.2
 
@@ -103,6 +103,6 @@ def test_read_from_rtsp_builds_reading(monkeypatch):
         camera_height_px=10.0,
     )
 
-    assert reading["still_url"] is None
+    assert reading["still_public_url"] is None
     assert reading["source_meta"]["adapter"] == "rtsp"
     assert reading["source_meta"]["rtsp_url"] == "rtsp://cam.internal/stream1"

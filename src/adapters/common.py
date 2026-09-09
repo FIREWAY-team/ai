@@ -1,9 +1,10 @@
 """세 어댑터(file/http/rtsp) 공용 — ReadingCore를 팀 공용 Reading(dict)으로 감싼다 (스펙 0, 1장).
 
-Reading 전체 스키마(cctv_id, still_url, edge_id, measured_at, source_meta 등)는
-팀 확정 문서(`팀원공유_유강현_v4.md`) 소유라 이 저장소에 dataclass로 재정의하지
-않는다 — 백엔드가 검증하는 필드명 그대로 dict로 채워 넘긴다. 판독 모듈이
-책임지는 하위 집합(ReadingCore, src/schemas.py)만 이 저장소가 소유한다.
+Reading 전체 스키마(cctv_id, still_public_url, edge_id, measured_at, source_meta
+등)는 백엔드(`FIREWAY-team/backend`)의 `cctv_readings` 테이블(V3 마이그레이션)
+소유라 이 저장소에 dataclass로 재정의하지 않는다 — 그 테이블 컬럼명 그대로
+dict로 채워 넘긴다. 판독 모듈이 책임지는 하위 집합(ReadingCore,
+src/schemas.py)만 이 저장소가 소유한다.
 """
 from __future__ import annotations
 
@@ -32,10 +33,14 @@ def build_reading(
     reading_core: ReadingCore,
     source_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """ReadingCore(판독 결과) + 어댑터가 아는 필드 → Reading 전체(dict, 스펙 1장)."""
+    """ReadingCore(판독 결과) + 어댑터가 아는 필드 → Reading 전체(dict, 스펙 1장).
+
+    still_url을 "still_public_url" 키로 내보낸다 — backend `cctv_readings`
+    테이블 컬럼명(V3__init_cctv_readings.sql)과 정확히 맞춰야 한다.
+    """
     return {
         "cctv_id": cctv_id,
-        "still_url": still_url,
+        "still_public_url": still_url,
         "edge_id": edge_id,
         "wall_width_m": reading_core.wall_width_m,
         "obstacle_width_m": reading_core.obstacle_width_m,
