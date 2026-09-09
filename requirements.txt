@@ -1,0 +1,9 @@
+numpy
+opencv-python-headless
+ultralytics
+pyyaml
+requests
+boto3
+
+# dev
+pytest

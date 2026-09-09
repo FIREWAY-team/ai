@@ -216,3 +216,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- FireWay 프로젝트 특화 ---
+.DS_Store
+*.pt
+*.md
+!README.md
+
+# 로컬 실측/S3 URL이 들어간 실제 카메라 등록 정보 — 개인 로컬 경로가 섞일 수
+# 있어 커밋하지 않는다. 템플릿은 configs/cameras.example.yaml 참고.
+configs/cameras.yaml
+
+# scripts/run_demo.py, scripts/run_motion_demo.py가 매 실행마다 새로 만드는
+# 산출물 — AI 파이프라인 → backend 인계 파일이라 실행할 때마다 갱신되므로
+# 커밋 대상이 아니다.
+cctv_readings.json
+motion_demo_result.json
+
+# 로컬 검증용 원본 CCTV 이미지 — 실제 배포에서는 S3에 올라가고 아직 개인
+# 소스 이미지라 레포에는 안 올린다.
+data/raw_images/
