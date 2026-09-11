@@ -236,3 +236,13 @@ motion_demo_result.json
 # 로컬 검증용 원본 CCTV 이미지 + 개인 학습 자료 — 실제 배포용 CCTV 이미지는
 # S3로 가고, 이 폴더는 로컬 전용 작업 공간이라 레포에는 안 올린다.
 data/
+
+# YOLO 파인튜닝 산출물(체크포인트, 로그, 플롯) — *.pt는 이미 위에서 빠지지만
+# results.csv/args.yaml/이미지 플롯 등 나머지 파일까지 잡아준다. 최종
+# 가중치는 검증 후 yolo11n-seg.pt에 덮어써서 반영한다(MODEL_WEIGHTS 참고).
+runs/
+runs_finetune/
+
+# AI Hub 데이터 다운로드용 CLI 스크립트 — 프로젝트 코드가 아니라 외부 도구
+# 다운로드본이라 레포에 포함하지 않는다 (필요하면 README 안내로 각자 받는다).
+aihubshell

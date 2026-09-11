@@ -129,10 +129,10 @@ def test_obstacle_widths_m_excludes_detections_at_a_different_depth():
 
 
 def test_obstacle_widths_m_excludes_people():
-    # 사람은 소방차가 오면 스스로 비켜설 수 있으므로 도로 폭 계산에서
+    # 보행자는 소방차가 오면 스스로 비켜설 수 있으므로 도로 폭 계산에서
     # 제외한다(정책 확정) — 검출은 되지만 폭 합산에는 안 들어간다.
     car = make_detection("승용차", 0.9, x=10, y=10, w=90, h=180)  # footpoint=190
-    person = make_detection("사람", 0.8, x=150, y=10, w=40, h=180)  # 같은 깊이(footpoint=190)
+    person = make_detection("보행자", 0.8, x=150, y=10, w=40, h=180)  # 같은 깊이(footpoint=190)
 
     total_car_only = obstacle_widths_m(
         [car], scale_m_per_px=0.02, target_y_px=190.0, camera_height_px=200.0

@@ -51,7 +51,11 @@ OBSTACLE_MIN_CONFIDENCE = 0.5
 # 없도록 막는" 장애물로 보지 않는다. 검출 자체(detected_objects)에는
 # 여전히 남는다 — 폭 계산에서만 뺀다. 차량과 고정 장애물(매대·표지판 등,
 # 검출 가능해지면)은 계속 포함한다.
-OBSTACLE_EXCLUDED_CLASSES = frozenset({"사람"})
+#
+# "보행자"는 2026-09-12 AI Hub 파인튜닝 클래스명(src/inference/yolo.py의
+# CLASS_NAME_MAP)과 맞춘 이름 — 여기가 옛 이름("사람")으로 남아있으면 보행자가
+# 조용히 장애물 폭에 합산돼버리는, 안전 방향과 반대인 회귀가 생긴다.
+OBSTACLE_EXCLUDED_CLASSES = frozenset({"보행자"})
 
 
 def _stable_sigmoid(x: float) -> float:
