@@ -56,6 +56,22 @@ def get_footpoint(rect: tuple) -> tuple[float, float]:
     return (bottom_two[0][0] + bottom_two[1][0]) / 2, (bottom_two[0][1] + bottom_two[1][1]) / 2
 
 
+def vehicle_y_span(rect: tuple) -> tuple[float, float]:
+    """회전사각형이 화면 세로축으로 차지하는 구간(y_min, y_max) — 차량이 실제로
+    "그 깊이 구간"을 점유한다고 볼 수 있는 범위다 (정확도개선방안 버그 수정,
+    2026-09-11: 골목 한쪽에 세로로 줄줄이 주차된 차들을 footpoint 거리 기반
+    감쇠 가중치만으로 걸러내면, 감쇠 문턱값이 관대해서 서로 다른 지점에 서
+    있는 차들이 전부 같은 지점의 장애물로 합산돼 버린다 — 실제 차량 폭보다
+    도로가 좁게 나오는 정도가 아니라 벽 실측폭보다 장애물 합이 더 커지는
+    수준의 오류였다. 이 함수로 차량의 실제 세로 점유 구간을 구해서, 측정
+    지점(target_y_px)이 그 구간 안에 들 때만 "그 지점을 막고 있다"고
+    판정한다(obstacle_widths_m 참고).
+    """
+    box = cv2.boxPoints(rect)
+    ys = box[:, 1]
+    return float(ys.min()), float(ys.max())
+
+
 def is_good_reference(rect: tuple, angle_threshold_deg: float = REFERENCE_ANGLE_THRESHOLD_DEG) -> bool:
     """카메라 광축에 대해 비스듬히 주차된 차량은 기준자로 부적합하다 (정확도개선방안 A-2).
 

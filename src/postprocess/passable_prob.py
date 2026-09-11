@@ -6,10 +6,10 @@ from typing import Iterable
 
 from src.inference.homography import (
     combine_scales_with_error,
-    depth_weight,
     get_footpoint,
     local_scale_estimates,
     vehicle_pixel_width,
+    vehicle_y_span,
 )
 from src.inference.yolo import VehicleDetection
 from src.schemas import ReadingCore
@@ -19,13 +19,31 @@ from src.schemas import ReadingCore
 # 경계를 다시 잡지 않는다).
 VERDICT_STEEPNESS = 3.0
 
-# 장애물 폭 집계 시 "측정 지점(target_y_px)과 다른 깊이"로 보는 가중치 하한선.
-# depth_weight가 이 미만이면 그 장애물은 화면에는 찍혔어도 이 지점의 도로
-# 폭에는 실질적으로 안 겹친다고 보고 제외한다 — 안 그러면 도로를 따라 앞뒤로
-# 늘어선 차량까지 원근 구분 없이 다 더해져 실제보다 훨씬 좁게 오판한다.
-# 초기값이며, 깊이 가중치 감쇠계수(DEPTH_DECAY_COEF)처럼 실측 데이터로
-# 튜닝 대상이다.
-OBSTACLE_DEPTH_WEIGHT_THRESHOLD = 0.3
+# 장애물 폭 집계에서 "이 지점(target_y_px)을 실제로 막고 있다"고 볼 세로
+# 여유 허용치. vehicle_y_span()으로 구한 차량의 실제 세로 점유 구간
+# [y_min, y_max]에 target_y_px가 들어가야 포함하되, 픽셀 경계 반올림
+# 오차(예: footpoint를 target_y_px로 그대로 넘길 때 1px 안팎 어긋남)를
+# 흡수할 최소한의 여유만 둔다 — 카메라 높이(px)에 비례하게 잡아 해상도가
+# 달라져도 같은 비율로 스케일된다.
+#
+# 이전에는 depth_weight(footpoint 거리 기반 지수감쇠) 임계값(0.3)으로
+# "다른 깊이"를 걸렀는데, 문턱이 관대해서(카메라 높이의 ~30%) 골목 한쪽에
+# 세로로 줄줄이 주차된 차들이 전부 같은 지점의 장애물로 합산되는 버그가
+# 있었다(정확도개선방안 문서 밖 실측 데이터로 2026-09-11 발견 — 벽 실측폭보다
+# 장애물 합이 더 커져 effective_width_m이 음수가 나옴). 차량은 화면에서
+# 세로로 어느 구간을 "점유"하는지가 이미 vehicle_y_span()으로 정확히
+# 나오므로, 근사치인 footpoint-거리 감쇠 대신 실제 점유 구간 포함 여부로
+# 판정한다.
+OBSTACLE_Y_TOLERANCE_RATIO = 0.005
+OBSTACLE_Y_TOLERANCE_MIN_PX = 1.0
+
+# 장애물 폭 집계에서 제외하는 신뢰도 하한선. A-3(REFERENCE_MIN_CONFIDENCE)와
+# 같은 이유로, 특히 mAP가 낮은 클래스(트럭 0.355)는 낮은 신뢰도에서 차량이
+# 아닌 것(간판 차양 등)을 차량으로 잘못 인식하는 경우가 있고, 그런 오검출은
+# 세그멘테이션 마스크도 비정상적으로 커서(화면 전체에 걸친 회전사각형 등)
+# 장애물 합계를 실측 벽 폭보다 크게 만들어버릴 수 있다. 이 임계값 미만은
+# detected_objects에는 남기되(검출 자체는 숨기지 않음) 폭 계산에서만 뺀다.
+OBSTACLE_MIN_CONFIDENCE = 0.5
 
 # 도로 폭 계산(obstacle_width_m)에서 제외하는 클래스 (정책 확정, 스펙
 # 2-1장의 미결 사항 해소). 사람은 소방차가 오면 스스로 비켜설 수 있고,
@@ -48,24 +66,33 @@ def obstacle_widths_m(
     scale_m_per_px: float,
     target_y_px: float,
     camera_height_px: float,
-    weight_threshold: float = OBSTACLE_DEPTH_WEIGHT_THRESHOLD,
+    min_confidence: float = OBSTACLE_MIN_CONFIDENCE,
 ) -> float:
-    """측정 지점(target_y_px)과 같은 깊이에 있는 장애물만 폭을 합산해 미터로 환산.
+    """측정 지점(target_y_px)을 실제로 막고 있는 장애물만 폭을 합산해 미터로 환산.
 
     화면에 찍힌 모든 검출을 원근(깊이) 구분 없이 그냥 더하면, 도로를 따라
     앞뒤로 늘어선 차량·사람까지 전부 합산돼 실제보다 훨씬 좁은 도로로
     오판한다(그 지점을 동시에 막고 있는 장애물만 그 지점의 통과폭에 영향을
-    준다). depth_weight가 weight_threshold 미만인 검출은 "다른 깊이"로
-    보고 제외한다. OBSTACLE_EXCLUDED_CLASSES(사람 등 스스로 비킬 수 있는
-    대상)도 제외한다.
+    준다). 차량이 화면 세로로 실제 점유하는 구간(vehicle_y_span)에
+    target_y_px가 들어갈 때만 포함한다 — 같은 구간에 나란히(가로로) 걸린
+    차량은 폭이 그대로 더해지고(동시에 도로를 막는 경우), 세로로 줄줄이
+    떨어져 주차된 차량은 서로 다른 지점이라 더해지지 않는다.
+    min_confidence 미만인 검출은 제외한다(정확도개선방안 A-3와 같은 이유 —
+    신뢰도가 낮은 검출, 특히 mAP가 낮은 클래스는 차량이 아닌 것을 잘못
+    인식했을 가능성이 있고, 그런 오검출의 마스크는 비정상적으로 커서 장애물
+    합계를 실측 벽 폭보다 크게 만들 수 있다). OBSTACLE_EXCLUDED_CLASSES(사람
+    등 스스로 비킬 수 있는 대상)도 제외한다.
     """
+    tolerance_px = max(OBSTACLE_Y_TOLERANCE_MIN_PX, camera_height_px * OBSTACLE_Y_TOLERANCE_RATIO)
     total = 0.0
     for det in detections:
         if det.vehicle_class in OBSTACLE_EXCLUDED_CLASSES:
             continue
+        if det.confidence < min_confidence:
+            continue
         pixel_width, rect = vehicle_pixel_width(det.mask)
-        _, footpoint_y = get_footpoint(rect)
-        if depth_weight(footpoint_y, target_y_px, camera_height_px) < weight_threshold:
+        y_min, y_max = vehicle_y_span(rect)
+        if not (y_min - tolerance_px <= target_y_px <= y_max + tolerance_px):
             continue
         total += pixel_width * scale_m_per_px
     return total
