@@ -4,10 +4,12 @@ from __future__ import annotations
 import math
 from typing import Iterable
 
+from src.inference import calibration_store
 from src.inference.homography import (
     combine_scales_with_error,
     get_footpoint,
     local_scale_estimates,
+    reject_local_outliers,
     vehicle_pixel_width,
     vehicle_y_span,
 )
@@ -107,6 +109,7 @@ def compute_widths(
     target_y_px: float,
     camera_height_px: float,
     wall_width_m: float,
+    cctv_id: str | None = None,
 ) -> tuple[float, float, float, float]:
     """장애물폭(obstacle_width_m)·잔여폭(effective_width_m)과 이 프레임 캘리브레이션
     추정 오차(calibration_error_m)를 계산한다 (핵심, 2-3장).
@@ -121,8 +124,23 @@ def compute_widths(
     불일치하는지(상대오차)를 wall_width_m에 투영한 값이다 — wall_width_m
     자체는 지도 실측이라 오차원이 아니고, 오차는 오직 장애물 폭 스케일
     추정에서만 온다.
+
+    cctv_id — 주어지면 이 카메라에 누적된 과거 기준 차량 관측치
+    (calibration_store, 정확도개선방안 A-4 확장)를 현재 프레임 것과 합쳐서
+    스케일을 계산한다. CCTV는 고정 카메라라 과거 관측치도 여전히 유효하고,
+    한 프레임에 기준 차량이 1~2대뿐이라 먼 지점으로 외삽할 때 생기던 큰
+    오차(실측 검증 30~40%대)를 줄인다. None이면(또는 아직 누적된 게 없으면)
+    기존처럼 현재 프레임만으로 계산한다 — 하위호환.
     """
     estimates = local_scale_estimates(detections)
+    if cctv_id is not None:
+        accumulated = calibration_store.load_observations(cctv_id)
+        if accumulated:
+            estimates = estimates + [
+                (obs.scale, obs.confidence, obs.footpoint_y) for obs in accumulated
+            ]
+            estimates = reject_local_outliers(estimates, camera_height_px)
+
     scale, scale_error = combine_scales_with_error(estimates, target_y_px, camera_height_px)
     if scale is None:
         raise ValueError("로컬 스케일을 계산할 기준 차량이 없습니다")
@@ -139,6 +157,7 @@ def find_narrowest_widths(
     detections: list[VehicleDetection],
     camera_height_px: float,
     wall_width_m: float,
+    cctv_id: str | None = None,
 ) -> tuple[float, float, float, float, float]:
     """도로의 여러 지점 중 가장 좁아지는(병목) 지점을 찾아 그 지점의
     wall_width_m·obstacle_width_m·effective_width_m·calibration_error_m을 반환한다.
@@ -149,7 +168,8 @@ def find_narrowest_widths(
     하므로(스펙 4장 오류 비대칭성: FAIL을 PASS로 오판하는 쪽이 훨씬 위험),
     검출된 장애물들의 footpoint(깊이)를 전부 후보 지점으로 놓고 각각
     compute_widths()를 돌려 effective_width_m이 가장 작은(가장 좁은) 지점을
-    채택한다. 반환값 마지막 원소는 채택된 target_y_px다.
+    채택한다. 반환값 마지막 원소는 채택된 target_y_px다. cctv_id는
+    compute_widths()로 그대로 전달한다(누적 캘리브레이션 관측치 사용).
     """
     if not detections:
         raise ValueError("병목 지점을 찾을 장애물 검출이 없습니다")
@@ -163,7 +183,7 @@ def find_narrowest_widths(
     narrowest: tuple[float, float, float, float, float] | None = None
     for target_y in candidate_ys:
         wall_m, obstacle_m, effective_m, calib_err_m = compute_widths(
-            detections, target_y, camera_height_px, wall_width_m
+            detections, target_y, camera_height_px, wall_width_m, cctv_id=cctv_id
         )
         if narrowest is None or effective_m < narrowest[2]:
             narrowest = (wall_m, obstacle_m, effective_m, calib_err_m, target_y)

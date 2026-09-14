@@ -116,6 +116,41 @@ def local_scale_estimates(
     return estimates
 
 
+DEPTH_OUTLIER_WINDOW_RATIO = 0.15
+DEPTH_OUTLIER_MAX_DEVIATION_RATIO = 0.5
+
+
+def reject_local_outliers(
+    estimates: list[tuple[float, float, float]],
+    camera_height_px: float,
+    window_ratio: float = DEPTH_OUTLIER_WINDOW_RATIO,
+    max_deviation_ratio: float = DEPTH_OUTLIER_MAX_DEVIATION_RATIO,
+) -> list[tuple[float, float, float]]:
+    """여러 프레임에 걸쳐 누적된 기준 차량 관측치에서, 비슷한 깊이(footpoint_y)
+    구간의 다른 관측치들과 스케일이 크게 어긋나는 것을 제외한다.
+
+    smoothed_scale()의 median 기반 이상치 제거와 같은 원리를 "시간"이 아니라
+    "깊이" 축에 적용한 것 — 오검출·오분류 하나가 calibration_store에 영구
+    누적되면(정확도개선방안 A-4 확장) 그 이후 판정에 계속 영향을 주므로, 쌓인
+    관측치끼리 서로 검증하게 한다. 비교할 이웃이 2개 미만인 구간(데이터가
+    아직 적은 깊이대)은 과도하게 걸러내지 않도록 그대로 통과시킨다.
+    """
+    if len(estimates) < 3:
+        return list(estimates)
+
+    window_px = camera_height_px * window_ratio
+    kept: list[tuple[float, float, float]] = []
+    for i, (scale, conf, y) in enumerate(estimates):
+        neighbors = [s for j, (s, _c, ny) in enumerate(estimates) if j != i and abs(ny - y) <= window_px]
+        if len(neighbors) < 2:
+            kept.append((scale, conf, y))
+            continue
+        med = statistics.median(neighbors)
+        if med == 0 or abs(scale - med) / med <= max_deviation_ratio:
+            kept.append((scale, conf, y))
+    return kept
+
+
 def smoothed_scale(recent_scales: list[float | None], alpha: float = 0.3) -> float | None:
     """같은 카메라의 최근 N프레임 스케일 추정치를 EMA로 스무딩한다 (정확도개선방안 A-4).
 

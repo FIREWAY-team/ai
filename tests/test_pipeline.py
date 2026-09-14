@@ -41,6 +41,31 @@ def test_process_frame_uses_map_measured_wall_width(monkeypatch):
     assert reading.wall_width_m == 4.2
 
 
+def test_process_frame_threads_cctv_id_into_compute_widths(monkeypatch):
+    # 정확도개선방안 A-4 확장(2026-09-15): cctv_id가 pipeline까지 제대로
+    # 전달돼야 누적 캘리브레이션(calibration_store)을 쓸 수 있다.
+    detection = make_detection("승용차", 0.9, x=10, y=10, w=90, h=180, shape=(200, 300))
+    monkeypatch.setattr(pipeline.yolo, "detect_vehicles", lambda frame: [detection])
+
+    received = {}
+
+    def fake_compute_widths(detections, target_y_px, camera_height_px, wall_width_m, cctv_id=None):
+        received["cctv_id"] = cctv_id
+        return wall_width_m, 0.0, wall_width_m, 0.0
+
+    monkeypatch.setattr(pipeline, "compute_widths", fake_compute_widths)
+
+    pipeline.process_frame(
+        frame=np.zeros((200, 300, 3), dtype=np.uint8),
+        wall_width_m=4.2,
+        target_y_px=100.0,
+        camera_height_px=200.0,
+        vehicles_json=VEHICLES_JSON,
+        cctv_id="cctv_7",
+    )
+    assert received["cctv_id"] == "cctv_7"
+
+
 def test_run_job_dispatches_to_process_frame(monkeypatch):
     # process_camera_batch는 ProcessPoolExecutor로 별도 프로세스를 스폰하므로
     # (macOS 기본 spawn) monkeypatch가 자식 프로세스에 전파되지 않는다 — 여기서는

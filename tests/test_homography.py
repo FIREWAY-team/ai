@@ -9,6 +9,7 @@ from src.inference.homography import (
     is_good_reference,
     local_scale,
     local_scale_estimates,
+    reject_local_outliers,
     smoothed_scale,
     vehicle_pixel_width,
 )
@@ -156,3 +157,37 @@ def test_smoothed_scale_filters_outlier_and_smooths():
 
 def test_smoothed_scale_empty_returns_none():
     assert smoothed_scale([None, None]) is None
+
+
+def test_reject_local_outliers_removes_deviant_same_depth_observation():
+    # 비슷한 깊이(y 근처)에 모인 관측치들 사이에서 하나만 크게 벗어나면(오검출·
+    # 오분류로 의심) 제외한다. 카메라 높이 1000px, window_ratio 기본 0.15면
+    # 150px 이내를 "비슷한 깊이"로 본다.
+    estimates = [
+        (0.010, 0.9, 500.0),
+        (0.0105, 0.8, 520.0),
+        (0.0098, 0.85, 480.0),
+        (0.05, 0.7, 510.0),  # 이웃들과 스케일이 5배 차이 — 이상치
+    ]
+    result = reject_local_outliers(estimates, camera_height_px=1000.0)
+    scales = [s for s, _c, _y in result]
+    assert 0.05 not in scales
+    assert len(result) == 3
+
+
+def test_reject_local_outliers_keeps_sparse_regions_untouched():
+    # 비교할 이웃이 2개 미만인 깊이 구간은 이상치 판정을 안 한다 — 데이터가
+    # 아직 적은 구간까지 과도하게 걸러내면 정작 필요한 관측치가 사라진다.
+    estimates = [
+        (0.010, 0.9, 100.0),
+        (0.0105, 0.8, 110.0),
+        (0.05, 0.7, 900.0),  # 근처에 비교할 이웃이 없음 — 그대로 유지
+    ]
+    result = reject_local_outliers(estimates, camera_height_px=1000.0)
+    assert len(result) == 3
+
+
+def test_reject_local_outliers_noop_under_three_estimates():
+    estimates = [(0.05, 0.7, 500.0), (0.01, 0.9, 100.0)]
+    result = reject_local_outliers(estimates, camera_height_px=1000.0)
+    assert result == estimates

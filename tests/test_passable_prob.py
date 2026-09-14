@@ -7,6 +7,7 @@ from goldenlane_vehicle_specs import (
     resolve_margin_m,
     resolve_margin_m_from_samples,
 )
+from src.inference import calibration_store
 from src.postprocess.passable_prob import (
     build_reading_core,
     build_reading_verdict,
@@ -204,6 +205,51 @@ def test_compute_widths_raises_without_reference_vehicle():
         pass
     else:
         raise AssertionError("기준 차량이 없으면 에러여야 합니다")
+
+
+def test_compute_widths_without_cctv_id_never_touches_calibration_store(monkeypatch):
+    # cctv_id를 안 주면(기존 호출부, 하위호환) calibration_store는 아예 조회되지
+    # 않아야 한다 — 조회하면 즉시 실패하게 만들어서 검증한다.
+    def _boom(*args, **kwargs):
+        raise AssertionError("cctv_id 없이 호출했는데 calibration_store가 조회됨")
+
+    monkeypatch.setattr(calibration_store, "load_observations", _boom)
+
+    detections = [make_detection("승용차", 0.9, x=10, y=10, w=90, h=180)]
+    compute_widths(detections, target_y_px=190.0, camera_height_px=200.0, wall_width_m=4.2)
+
+
+def test_compute_widths_uses_accumulated_observations_when_current_frame_lacks_references(
+    monkeypatch,
+):
+    # 정확도개선방안 A-4 확장(2026-09-15): 현재 프레임에 기준 차량이 하나도
+    # 없어도, cctv_id로 누적된 과거 관측치가 있으면 그걸로 스케일을 계산할 수
+    # 있어야 한다. 장애물(사람)만 있고 기준 차량은 없는 프레임으로 검증.
+    person = make_detection("보행자", 0.9, x=10, y=10, w=90, h=180)  # 기준자 후보 아님
+
+    monkeypatch.setattr(
+        calibration_store,
+        "load_observations",
+        lambda cctv_id, **kwargs: [
+            calibration_store.make_observation(0.02, 0.9, 190.0, 200.0),
+            calibration_store.make_observation(0.021, 0.85, 185.0, 200.0),
+        ],
+    )
+
+    # cctv_id 없이는(현재 프레임에 기준 차량이 없으므로) 에러가 나야 한다
+    try:
+        compute_widths([person], target_y_px=190.0, camera_height_px=200.0, wall_width_m=4.2)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("기준 차량이 없으면 cctv_id 없이는 에러여야 합니다")
+
+    # cctv_id를 주면 누적 관측치로 계산에 성공해야 한다
+    wall_m, obstacle_m, effective_m, calib_err_m = compute_widths(
+        [person], target_y_px=190.0, camera_height_px=200.0, wall_width_m=4.2, cctv_id="cctv_x"
+    )
+    assert wall_m == 4.2
+    assert effective_m <= wall_m
 
 
 def test_find_narrowest_widths_picks_the_smallest_effective_width():

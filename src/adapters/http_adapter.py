@@ -56,6 +56,7 @@ def read_from_http(
         camera_height_px,
         vehicles_json=vehicles_json,
         margin_m=margin_m,
+        cctv_id=cctv_id,
     )
     return build_reading(
         cctv_id=cctv_id,

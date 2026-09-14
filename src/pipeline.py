@@ -40,6 +40,7 @@ class FrameJudgeJob:
     camera_height_px: float
     vehicles_json: dict[str, float] | None = None
     margin_m: float | None = None
+    cctv_id: str | None = None
 
 
 def process_frame(
@@ -49,11 +50,16 @@ def process_frame(
     camera_height_px: float,
     vehicles_json: dict[str, float] | None = None,
     margin_m: float | None = None,
+    cctv_id: str | None = None,
 ) -> ReadingCore:
     """사진 한 장 → ReadingCore (스펙 2장 전체 파이프라인).
 
     wall_width_m은 카메라 등록 시 지도 실측으로 확정한 고정값
     (`configs/cameras.yaml`)을 호출부가 그대로 넘긴다.
+
+    cctv_id를 주면 이 카메라에 누적된 기준 차량 관측치(calibration_store,
+    정확도개선방안 A-4 확장)를 같이 써서 스케일을 계산한다 — 자세한 내용은
+    compute_widths() 참고.
     """
     detections = yolo.detect_vehicles(frame)
 
@@ -62,6 +68,7 @@ def process_frame(
         target_y_px,
         camera_height_px,
         wall_width_m,
+        cctv_id=cctv_id,
     )
 
     resolved_vehicles = vehicles_json if vehicles_json is not None else load_vehicles_json()
@@ -85,6 +92,7 @@ def _run_job(job: FrameJudgeJob) -> ReadingCore:
         job.camera_height_px,
         job.vehicles_json,
         job.margin_m,
+        job.cctv_id,
     )
 
 
