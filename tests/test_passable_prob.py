@@ -87,6 +87,33 @@ def test_verdict_extreme_effective_widths_are_overflow_safe():
         assert 0.0 <= prob <= 1.0
 
 
+def test_verdict_high_calibration_error_downgrades_marginal_pass_to_uncertain():
+    # 좁은 골목을 비스듬히 찍은 카메라는 기준 차량들의 스케일 추정치가 서로
+    # 크게 어긋날 수 있다(2026-09-13 실측 검증에서 확인 — 같은 프레임 안에서
+    # 기준 차량 스케일이 최대 2배 차이). 그런 프레임에서는 effective_width_m이
+    # margin_m 기준으로 PASS처럼 보여도, 그 자체가 불확실한 값이므로 confident
+    # PASS를 내면 안 된다.
+    need = VEHICLES_JSON["pump-3.5"]
+    margin_m = 0.25
+    effective_m = need + margin_m  # calibration_error_m=0이면 z==1, PASS
+    status_confident, _ = verdict(effective_m, need, margin_m, calibration_error_m=0.0)
+    assert status_confident == "PASS"
+
+    status_uncertain, _ = verdict(effective_m, need, margin_m, calibration_error_m=1.0)
+    assert status_uncertain == "UNCERTAIN"
+
+
+def test_verdict_high_calibration_error_does_not_soften_fail():
+    # 오류 비대칭성(스펙 4장): FAIL을 PASS로 오판하는 쪽이 훨씬 위험하므로,
+    # 캘리브레이션이 불확실하다고 해서 이미 확정된 FAIL 판정을 UNCERTAIN으로
+    # 완화하지 않는다 — PASS 쪽만 더 보수적으로 넓어진다.
+    need = VEHICLES_JSON["pump-3.5"]
+    margin_m = 0.25
+    effective_m = need - margin_m  # calibration_error_m=0이면 z==-1, FAIL
+    status, _ = verdict(effective_m, need, margin_m, calibration_error_m=5.0)
+    assert status == "FAIL"
+
+
 def test_build_reading_verdict_judges_all_vehicle_types_at_once():
     # 잔여폭 2.6m: pump-3.5(2.3m, margin 0.25)는 z=1.2로 PASS, pump-8(2.5m)은 z=0.4로 UNCERTAIN
     effective_m, margin_m = 2.6, 0.25

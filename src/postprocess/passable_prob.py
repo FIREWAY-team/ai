@@ -170,15 +170,32 @@ def find_narrowest_widths(
     return narrowest
 
 
-def verdict(effective_m: float, vehicle_width_m: float, margin_m: float) -> tuple[str, float]:
-    """단일 차종 판정. 판정 경계(z >= 1 / z <= -1)는 검증된 margin_m 그대로 쓰고,
-    prob는 판정과 별도로 계산해 채우는 부가값(소방 상황실 표시용)일 뿐이다.
+def verdict(
+    effective_m: float,
+    vehicle_width_m: float,
+    margin_m: float,
+    calibration_error_m: float = 0.0,
+) -> tuple[str, float]:
+    """단일 차종 판정.
+
+    calibration_error_m(이 프레임의 캘리브레이션 불일치, compute_widths 참고)이
+    클수록 PASS 문턱을 더 보수적으로 넓힌다 — 좁은 골목을 비스듬히 찍은 카메라는
+    기준 차량들의 스케일 추정치가 서로 크게 어긋날 수 있는데, 그런 프레임에서
+    effective_width_m이 그럴듯해 보여도 실제로는 불확실한 값이다. PASS 쪽만
+    넓히고 FAIL 쪽 문턱(margin_m 그대로)은 건드리지 않는다 — 불확실하다고 해서
+    "위험할 수 있다"는 경고를 완화하면 안 되기 때문이다(스펙 4장 오류 비대칭성:
+    FAIL을 PASS로 잘못 판정하는 쪽이 PASS를 FAIL로 잘못 판정하는 쪽보다 훨씬
+    위험하다 — 정확도개선방안 D-1이 제안했던 비대칭 임계값을 calibration_error_m
+    으로 구체화한 것). prob 표시값은 기존처럼 margin_m 기준 z로 계산한다(판정
+    경계와는 별개의 부가값).
     """
-    z = (effective_m - vehicle_width_m) / margin_m
+    pass_margin_m = margin_m + calibration_error_m
+    diff = effective_m - vehicle_width_m
+    z = diff / margin_m
     prob = _stable_sigmoid(VERDICT_STEEPNESS * z)
-    if z >= 1:
+    if diff >= pass_margin_m:
         status = "PASS"
-    elif z <= -1:
+    elif diff <= -margin_m:
         status = "FAIL"
     else:
         status = "UNCERTAIN"  # 소방 상황실 확인 요망, prob와 함께 표시
@@ -186,7 +203,10 @@ def verdict(effective_m: float, vehicle_width_m: float, margin_m: float) -> tupl
 
 
 def build_reading_verdict(
-    effective_m: float, vehicles_json: dict[str, float], margin_m: float
+    effective_m: float,
+    vehicles_json: dict[str, float],
+    margin_m: float,
+    calibration_error_m: float = 0.0,
 ) -> tuple[dict[str, str], float]:
     """차종별(pump-3.5, pump-8) 동시 판정 (스펙 2-4장).
 
@@ -196,7 +216,7 @@ def build_reading_verdict(
     results: dict[str, str] = {}
     probs: list[float] = []
     for name, width in vehicles_json.items():
-        status, prob = verdict(effective_m, width, margin_m)
+        status, prob = verdict(effective_m, width, margin_m, calibration_error_m)
         results[name] = status
         probs.append(prob)
     return results, min(probs)
@@ -230,7 +250,9 @@ def build_reading_core(
     method: str = "yolov11_homography_v1",
 ) -> ReadingCore:
     """판정까지 마친 뒤 팀 공용 ReadingCore로 조립 (스펙 1장 입출력 계약)."""
-    verdict_map, confidence = build_reading_verdict(effective_width_m, vehicles_json, margin_m)
+    verdict_map, confidence = build_reading_verdict(
+        effective_width_m, vehicles_json, margin_m, calibration_error_m
+    )
     return ReadingCore(
         wall_width_m=wall_width_m,
         obstacle_width_m=obstacle_width_m,
