@@ -11,6 +11,7 @@ from src.inference.homography import (
     local_scale_estimates,
     reject_local_outliers,
     vehicle_pixel_width,
+    vehicle_x_span,
     vehicle_y_span,
 )
 from src.inference.yolo import VehicleDetection
@@ -80,17 +81,23 @@ def obstacle_widths_m(
     앞뒤로 늘어선 차량·사람까지 전부 합산돼 실제보다 훨씬 좁은 도로로
     오판한다(그 지점을 동시에 막고 있는 장애물만 그 지점의 통과폭에 영향을
     준다). 차량이 화면 세로로 실제 점유하는 구간(vehicle_y_span)에
-    target_y_px가 들어갈 때만 포함한다 — 같은 구간에 나란히(가로로) 걸린
-    차량은 폭이 그대로 더해지고(동시에 도로를 막는 경우), 세로로 줄줄이
-    떨어져 주차된 차량은 서로 다른 지점이라 더해지지 않는다.
+    target_y_px가 들어갈 때만 포함한다.
     min_confidence 미만인 검출은 제외한다(정확도개선방안 A-3와 같은 이유 —
     신뢰도가 낮은 검출, 특히 mAP가 낮은 클래스는 차량이 아닌 것을 잘못
     인식했을 가능성이 있고, 그런 오검출의 마스크는 비정상적으로 커서 장애물
     합계를 실측 벽 폭보다 크게 만들 수 있다). OBSTACLE_EXCLUDED_CLASSES(사람
     등 스스로 비킬 수 있는 대상)도 제외한다.
+
+    y_span이 겹쳐 살아남은 차량끼리도 가로 위치(vehicle_x_span)가 겹치면
+    같은 차선에 앞뒤로 붙어 있는 것이지 나란히 서서 폭을 나눠 막는 게
+    아니다(2026-09-15, cctv_4 실측 검증 중 발견 — 원근 압축으로 앞차
+    끝과 뒷차 시작의 세로 구간이 몇 px 겹쳐서, 뻥 뚫린 골목인데
+    obstacle_width_m이 5m대로 잘못 나왔다). 가로 위치가 겹치는 차량군은
+    폭을 더하지 않고 그중 가장 넓은 차 1대분만 반영하고, 가로 위치가
+    겹치지 않는 차량군끼리만(다른 차선에서 동시에 좁히는 경우) 합산한다.
     """
     tolerance_px = max(OBSTACLE_Y_TOLERANCE_MIN_PX, camera_height_px * OBSTACLE_Y_TOLERANCE_RATIO)
-    total = 0.0
+    spans: list[tuple[float, float, float]] = []  # (x_min, x_max, pixel_width)
     for det in detections:
         if det.vehicle_class in OBSTACLE_EXCLUDED_CLASSES:
             continue
@@ -100,8 +107,32 @@ def obstacle_widths_m(
         y_min, y_max = vehicle_y_span(rect)
         if not (y_min - tolerance_px <= target_y_px <= y_max + tolerance_px):
             continue
-        total += pixel_width * scale_m_per_px
-    return total
+        x_min, x_max = vehicle_x_span(rect)
+        spans.append((x_min, x_max, pixel_width))
+
+    if not spans:
+        return 0.0
+
+    # 같은 target_y_px를 점유한다고 잡힌 차량이라도, 가로 위치(차선)가 겹치면
+    # 앞뒤로(같은 차선에) 겹쳐 있는 것이지 나란히 서서 폭을 나눠 막는 게
+    # 아니다 — 그런 겹침 그룹은 폭을 더하지 않고 가장 넓은 차 1대분만
+    # 반영한다. 가로 위치가 겹치지 않는 차량끼리만(다른 차선에서 동시에
+    # 좁히는 경우) 폭을 합산한다.
+    spans.sort(key=lambda s: s[0])
+    total = 0.0
+    cluster_end = spans[0][1]
+    cluster_max_width = spans[0][2]
+    for x_min, x_max, pixel_width in spans[1:]:
+        if x_min < cluster_end:
+            cluster_end = max(cluster_end, x_max)
+            cluster_max_width = max(cluster_max_width, pixel_width)
+        else:
+            total += cluster_max_width
+            cluster_end = x_max
+            cluster_max_width = pixel_width
+    total += cluster_max_width
+
+    return total * scale_m_per_px
 
 
 def compute_widths(

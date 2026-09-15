@@ -156,6 +156,30 @@ def test_obstacle_widths_m_excludes_detections_at_a_different_depth():
     assert math.isclose(total_both, total_same_only)
 
 
+def test_obstacle_widths_m_same_lane_overlap_takes_max_not_sum():
+    # 2026-09-15, cctv_4 실측 검증 중 발견: 같은 차선에 앞뒤로 거의 붙어
+    # 주차된 두 차량은 원근 압축 때문에 vehicle_y_span이 경계에서 몇 px
+    # 겹칠 수 있다 — 이때 가로 위치(vehicle_x_span)까지 겹치면(같은 차선)
+    # 나란히 서서 폭을 나눠 막는 게 아니므로 더하지 않고 더 넓은 차 1대분만
+    # 반영해야 한다. (가로 위치가 안 겹치는 다른 차선 케이스는
+    # test_obstacle_widths_m_sums_pixel_widths_scaled가 이미 검증한다.)
+    near_car = make_detection("승용차", 0.9, x=10, y=10, w=90, h=180, shape=(400, 300))  # y:10~189, x:10~99
+    far_car = make_detection("승용차", 0.9, x=30, y=185, w=90, h=60, shape=(400, 300))  # y:185~244, x:30~119(겹침)
+
+    total = obstacle_widths_m(
+        [near_car, far_car], scale_m_per_px=0.02, target_y_px=187.0, camera_height_px=400.0
+    )
+    near_only = obstacle_widths_m(
+        [near_car], scale_m_per_px=0.02, target_y_px=187.0, camera_height_px=400.0
+    )
+    far_only = obstacle_widths_m(
+        [far_car], scale_m_per_px=0.02, target_y_px=187.0, camera_height_px=400.0
+    )
+    # 더 넓은 차(near_car) 1대분과 같아야 하고, 두 폭을 더한 값보다는 작아야 한다.
+    assert math.isclose(total, near_only, rel_tol=1e-6)
+    assert total < near_only + far_only
+
+
 def test_obstacle_widths_m_excludes_people():
     # 보행자는 소방차가 오면 스스로 비켜설 수 있으므로 도로 폭 계산에서
     # 제외한다(정책 확정) — 검출은 되지만 폭 합산에는 안 들어간다.

@@ -72,6 +72,23 @@ def vehicle_y_span(rect: tuple) -> tuple[float, float]:
     return float(ys.min()), float(ys.max())
 
 
+def vehicle_x_span(rect: tuple) -> tuple[float, float]:
+    """회전사각형이 화면 가로축으로 차지하는 구간(x_min, x_max).
+
+    2026-09-15: vehicle_y_span만으로는 같은 차선에 앞뒤로(거의 붙어) 주차된
+    두 차량을 구분 못 하는 경계 케이스가 있었다 — 앞 차의 세로 점유 구간
+    끝과 뒤 차의 시작이 원근 압축으로 몇 px 겹치면, 실제로는 한 차선을
+    나눠 쓰는 두 차가 "동시에 다른 위치에서 도로를 막는" 것으로 잘못
+    합산됐다(cctv_4 실측 검증 중 발견 — 눈으로 봐도 뻥 뚫린 골목인데
+    obstacle_width_m이 5m대로 나옴). x_span으로 가로 위치가 겹치는지
+    (같은 차선인지) 봐서, obstacle_widths_m()이 합산 대신 최댓값을 쓸지
+    판단하는 데 쓴다.
+    """
+    box = cv2.boxPoints(rect)
+    xs = box[:, 0]
+    return float(xs.min()), float(xs.max())
+
+
 def is_good_reference(rect: tuple, angle_threshold_deg: float = REFERENCE_ANGLE_THRESHOLD_DEG) -> bool:
     """카메라 광축에 대해 비스듬히 주차된 차량은 기준자로 부적합하다 (정확도개선방안 A-2).
 
