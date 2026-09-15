@@ -86,6 +86,7 @@ def main() -> None:
         target_y_px=None,  # 병목 지점 자동탐색(find_narrowest_widths) — motion_demo.run_motion_aware_demo 참고
         camera_height_px=camera_height_px,
         frame_interval_sec=args.frame_interval_sec,
+        cctv_id=args.cctv_id,  # 누적 캘리브레이션(calibration_store) 사용 — motion_demo.run_motion_aware_demo 참고
     )
     reading = build_reading(
         cctv_id=args.cctv_id,

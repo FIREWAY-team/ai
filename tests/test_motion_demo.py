@@ -101,6 +101,45 @@ def test_motion_demo_target_y_px_none_uses_bottleneck_search(monkeypatch):
     assert reading.effective_width_m < 4.2
 
 
+def test_motion_demo_threads_cctv_id_into_find_narrowest_widths(monkeypatch):
+    # 2026-09-15: 이미지 경로(pipeline.process_frame)는 이미 cctv_id를 받아
+    # 누적 캘리브레이션(calibration_store)을 쓰는데, 영상 경로는 빠져 있었다
+    # — scripts/accumulate_calibration.py로 영상 카메라에도 관측치를 쌓아놨지만
+    # 실제로는 안 쓰이던 버그.
+    shape = (400, 300)
+    ref = make_detection("승용차", 0.9, x=10, y=10, w=90, h=180, shape=shape)
+    obstacle_a = make_detection("승용차", 0.9, x=150, y=200, w=60, h=120, shape=shape)
+    per_frame = [[ref, obstacle_a], [ref, obstacle_a]]
+    call_count = {"n": 0}
+
+    def fake_detect(frame):
+        idx = min(call_count["n"], len(per_frame) - 1)
+        call_count["n"] += 1
+        return per_frame[idx]
+
+    monkeypatch.setattr(motion_demo.yolo, "detect_vehicles", fake_detect)
+
+    received = {}
+    real_find_narrowest = motion_demo.find_narrowest_widths
+
+    def _spy_find_narrowest(detections, camera_height_px, wall_width_m, cctv_id=None):
+        received["cctv_id"] = cctv_id
+        return real_find_narrowest(detections, camera_height_px, wall_width_m, cctv_id=cctv_id)
+
+    monkeypatch.setattr(motion_demo, "find_narrowest_widths", _spy_find_narrowest)
+
+    frames = [np.zeros((*shape, 3), dtype=np.uint8) for _ in range(2)]
+    run_motion_aware_demo(
+        frames,
+        wall_width_m=4.2,
+        target_y_px=None,
+        camera_height_px=float(shape[0]),
+        vehicles_json={"pump-3.5": 2.3, "pump-8": 2.5},
+        cctv_id="cctv_4",
+    )
+    assert received["cctv_id"] == "cctv_4"
+
+
 def test_motion_demo_target_y_px_none_with_no_stationary_vehicles_is_clear(monkeypatch):
     # 정지 차량이 하나도 없으면(전부 이동 중) 병목탐색을 시도할 대상 자체가
     # 없다 — 도로가 뚫려있는 것으로 취급(obstacle=0).

@@ -103,6 +103,7 @@ def run_motion_aware_demo(
     vehicles_json: dict[str, float] | None = None,
     frame_interval_sec: float = 1.0,
     margin_m: float | None = None,
+    cctv_id: str | None = None,
 ) -> ReadingCore:
     """정지/이동 판별까지 포함한 단일 카메라 데모 흐름.
 
@@ -118,6 +119,13 @@ def run_motion_aware_demo(
     스케일(motion_scale)은 병목탐색과 무관하게 대략적인 값이면 충분해서
     (STATIONARY/MOVING을 가르는 속도 임계값 비교용) target_y_px가 없으면
     화면 70% 지점 기준으로 한 번만 계산한다.
+
+    cctv_id — 주어지면 find_narrowest_widths()로 그대로 전달돼 이 카메라에
+    누적된 과거 기준 차량 관측치(calibration_store)를 현재 프레임 것과
+    합쳐 스케일을 계산한다. 이미지 경로(pipeline.process_frame)는 이미
+    cctv_id를 받는데 영상 경로는 빠져 있었다(2026-09-15 발견 — 영상
+    카메라들도 scripts/accumulate_calibration.py로 관측치를 쌓아놨지만
+    실제로는 안 쓰이고 있었다).
     """
     if len(frames) < 2:
         raise ValueError("최소 2개 이상의 프레임이 필요합니다")
@@ -150,7 +158,9 @@ def run_motion_aware_demo(
         calibration_error_m = 0.0
     else:
         _wall, obstacle_width_m, effective_width_m, calibration_error_m, _bottleneck_y = (
-            find_narrowest_widths(stationary_detections, camera_height_px, wall_width_m)
+            find_narrowest_widths(
+                stationary_detections, camera_height_px, wall_width_m, cctv_id=cctv_id
+            )
         )
 
     resolved_vehicles = vehicles_json if vehicles_json is not None else load_vehicles_json()
