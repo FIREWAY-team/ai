@@ -16,7 +16,7 @@ import numpy as np
 from goldenlane_vehicle_specs import load_vehicles_json, resolve_margin_m
 from src.inference import yolo
 from src.inference.homography import combine_scales, get_footpoint, local_scale_estimates, vehicle_pixel_width
-from src.postprocess.passable_prob import build_reading_core, obstacle_widths_m
+from src.postprocess.passable_prob import build_reading_core, find_narrowest_widths, obstacle_widths_m
 from src.schemas import ReadingCore
 
 MOTION_METHOD = "yolov11_homography_v1_motion_aware"
@@ -98,7 +98,7 @@ def classify_motion(
 def run_motion_aware_demo(
     frames: list[np.ndarray],
     wall_width_m: float,
-    target_y_px: float,
+    target_y_px: float | None,
     camera_height_px: float,
     vehicles_json: dict[str, float] | None = None,
     frame_interval_sec: float = 1.0,
@@ -109,6 +109,15 @@ def run_motion_aware_demo(
     wall_width_m은 카메라 등록 시 지도 실측으로 확정한 값(`configs/cameras.yaml`).
     obstacle_widths_m()은 이 스크립트 안에서만 STATIONARY로 분류된 차량만
     골라 감싸 호출한다 — 메인 passable_prob.py 시그니처는 바꾸지 않는다.
+
+    target_y_px — 명시하면(기존 동작) 그 지점만 계산한다. None이면(기본,
+    2026-09-15부터) find_narrowest_widths로 정지 차량들 중 병목 지점을
+    자동으로 찾는다 — 이미지 경로(pipeline.process_frame)는 이미 이렇게
+    바뀌었는데 영상 경로는 고정 지점에 남아있어서, 병목탐색으로 잡히는
+    장애물을 놓치는 카메라가 있었다(실측 검증 중 발견). 이동 판별용
+    스케일(motion_scale)은 병목탐색과 무관하게 대략적인 값이면 충분해서
+    (STATIONARY/MOVING을 가르는 속도 임계값 비교용) target_y_px가 없으면
+    화면 70% 지점 기준으로 한 번만 계산한다.
     """
     if len(frames) < 2:
         raise ValueError("최소 2개 이상의 프레임이 필요합니다")
@@ -116,20 +125,33 @@ def run_motion_aware_demo(
     frames_detections = [yolo.detect_vehicles(f) for f in frames]
     last_detections = frames_detections[-1]
 
+    motion_target_y = target_y_px if target_y_px is not None else camera_height_px * 0.7
     estimates = local_scale_estimates(last_detections)
-    scale = combine_scales(estimates, target_y_px, camera_height_px)
-    if scale is None:
+    motion_scale = combine_scales(estimates, motion_target_y, camera_height_px)
+    if motion_scale is None:
         raise ValueError("기준 차량을 찾지 못해 스케일을 계산할 수 없습니다")
 
     tracks, last_frame_assignment = track_vehicles(frames_detections)
-    motion = classify_motion(tracks, scale, frame_interval_sec)
+    motion = classify_motion(tracks, motion_scale, frame_interval_sec)
 
     stationary_detections = [
         det for tid, det in last_frame_assignment.items() if motion.get(tid) == "STATIONARY"
     ]
 
-    obstacle_width_m = obstacle_widths_m(stationary_detections, scale, target_y_px, camera_height_px)
-    effective_width_m = wall_width_m - obstacle_width_m
+    if target_y_px is not None:
+        obstacle_width_m = obstacle_widths_m(
+            stationary_detections, motion_scale, target_y_px, camera_height_px
+        )
+        effective_width_m = wall_width_m - obstacle_width_m
+        calibration_error_m = 0.0
+    elif not stationary_detections:
+        obstacle_width_m = 0.0
+        effective_width_m = wall_width_m
+        calibration_error_m = 0.0
+    else:
+        _wall, obstacle_width_m, effective_width_m, calibration_error_m, _bottleneck_y = (
+            find_narrowest_widths(stationary_detections, camera_height_px, wall_width_m)
+        )
 
     resolved_vehicles = vehicles_json if vehicles_json is not None else load_vehicles_json()
     resolved_margin = margin_m if margin_m is not None else resolve_margin_m()
@@ -140,5 +162,6 @@ def run_motion_aware_demo(
         last_detections,
         resolved_vehicles,
         resolved_margin,
+        calibration_error_m=calibration_error_m,
         method=MOTION_METHOD,
     )

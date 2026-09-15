@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scripts.motion_demo import run_motion_aware_demo  # noqa: E402
 from src import camera_registry  # noqa: E402
-from src.adapters.common import build_reading, default_target_y_px  # noqa: E402
+from src.adapters.common import build_reading  # noqa: E402
 from src.adapters.video_adapter import extract_frames  # noqa: E402
 from src.output.file_writer import write_readings  # noqa: E402
 
@@ -79,12 +79,11 @@ def main() -> None:
     wall_width_m = camera_registry.get_camera(args.cctv_id)["wall_width_m"]
     last_frame = frames[-1]
     camera_height_px = last_frame.shape[0]
-    target_y_px = default_target_y_px(last_frame)
 
     reading_core = run_motion_aware_demo(
         frames,
         wall_width_m=wall_width_m,
-        target_y_px=target_y_px,
+        target_y_px=None,  # 병목 지점 자동탐색(find_narrowest_widths) — motion_demo.run_motion_aware_demo 참고
         camera_height_px=camera_height_px,
         frame_interval_sec=args.frame_interval_sec,
     )
