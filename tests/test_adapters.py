@@ -85,9 +85,11 @@ def test_read_from_file_looks_up_wall_width_m_by_cctv_id(monkeypatch, tmp_path):
     file_adapter.read_from_file(str(tmp_path / "frame.jpg"), cctv_id="cam_l1")
 
     assert captured["wall_width_m"] == 4.2
-    # target_y_px/camera_height_px도 명시 안 하면 이미지 크기에서 근사치를 잡는다
     assert captured["camera_height_px"] == 20
-    assert captured["target_y_px"] == 20 * 0.7
+    # target_y_px를 명시 안 하면 process_frame이 병목 지점을 자동으로 찾도록
+    # None을 그대로 넘긴다(2026-09-15부터 — find_narrowest_widths 참고). 화면의
+    # 고정 비율 지점만 보면 다른 깊이의 진짜 장애물을 놓칠 수 있어서 바뀌었다.
+    assert captured["target_y_px"] is None
 
 
 def test_read_from_rtsp_builds_reading(monkeypatch):
