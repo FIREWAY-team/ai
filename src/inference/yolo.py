@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-import cv2
 import numpy as np
 
 MODEL_WEIGHTS = "yolo11n-seg.pt"  # Ultralytics, AGPL-3.0 / 상업 라이선스 — 파인튜닝 후에도
@@ -69,7 +68,8 @@ def _load_model(weights: str = MODEL_WEIGHTS) -> Any:
 def detect_vehicles(frame: np.ndarray, weights: str = MODEL_WEIGHTS) -> list[VehicleDetection]:
     """세그멘테이션 기반 차량 검출. TTA(augment=True)로 노이즈를 줄인다."""
     model = _load_model(weights)
-    results = model.predict(frame, augment=True, verbose=False)
+    # 입력 letterbox 여백을 제거한 원본 좌표 마스크로 폭·접지점을 측정한다.
+    results = model.predict(frame, augment=True, verbose=False, retina_masks=True)
 
     frame_h, frame_w = frame.shape[:2]
     detections: list[VehicleDetection] = []
@@ -79,18 +79,17 @@ def detect_vehicles(frame: np.ndarray, weights: str = MODEL_WEIGHTS) -> list[Veh
         names = result.names
         boxes = result.boxes
         masks = result.masks.data.cpu().numpy()
+        if masks.shape != (len(boxes), frame_h, frame_w):
+            raise ValueError(
+                f"원본 좌표 마스크가 필요합니다: expected={(len(boxes), frame_h, frame_w)}, "
+                f"actual={masks.shape}"
+            )
         for i, box in enumerate(boxes):
             cls_name = names[int(box.cls[0])]
             vehicle_class = CLASS_NAME_MAP.get(cls_name)
             if vehicle_class is None:
                 continue  # CLASS_NAME_MAP에 없는(모델이 잘못 낸) 클래스명은 스킵
-            # YOLO의 마스크는 모델 추론 해상도(예: 384x640)로 나오고 bbox는
-            # 원본 프레임 좌표계라 그대로 두면 좌표계가 어긋난다 — 폭 측정과
-            # footpoint 계산이 전부 이 좌표계 위에서 이뤄지므로 원본 크기로
-            # 리사이즈해서 bbox와 같은 좌표계로 맞춘다.
-            mask = cv2.resize(
-                masks[i].astype(np.uint8), (frame_w, frame_h), interpolation=cv2.INTER_NEAREST
-            ).astype(bool)
+            mask = masks[i].astype(bool)
             detections.append(
                 VehicleDetection(
                     vehicle_class=vehicle_class,

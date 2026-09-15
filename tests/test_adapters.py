@@ -38,7 +38,7 @@ def test_read_from_file_builds_reading(monkeypatch, tmp_path):
     assert reading["still_public_url"] == image_path
     assert reading["wall_width_m"] == 4.2
     assert reading["verdict"] == {"pump-3.5": "PASS", "pump-8": "UNCERTAIN"}
-    assert reading["source_meta"] == {"adapter": "file"}
+    assert reading["source_meta"]["adapter"] == "file"
 
 
 def test_load_frame_raises_for_missing_file(tmp_path):
@@ -60,7 +60,7 @@ def test_read_from_http_builds_reading(monkeypatch):
     )
 
     assert reading["still_public_url"] == "https://example.internal/cam1/still.jpg"
-    assert reading["source_meta"] == {"adapter": "http"}
+    assert reading["source_meta"]["adapter"] == "http"
     assert reading["effective_width_m"] == 3.2
 
 

@@ -13,9 +13,11 @@ import cv2
 import numpy as np
 
 from goldenlane_vehicle_specs import VEHICLE_WIDTH_M
+from src.inference import calibration_store
+from src.inference.road_region import filter_road_detections
 from src.inference.yolo import VehicleDetection
 
-# 깊이 가중치 감쇠 계수 — 초기값, 9/10 1차 실측 방문 데이터로 확정됨 (스펙 2-2 한계 참고)
+# 깊이 가중치 감쇠 계수 — 초기값. 원본 영상의 깊이별 실측 대조 필요.
 DEPTH_DECAY_COEF = 4.0
 
 # 기준 차량(자로 쓸 차량) 채택 각도 허용치 — 카메라 정면 기준 ±15도
@@ -40,9 +42,11 @@ def vehicle_pixel_width(mask: np.ndarray) -> tuple[float, tuple]:
     return pixel_width, rect
 
 
-def local_scale(pixel_width: float, vehicle_class: str, class_conf: float) -> float:
-    """알려진 차종 폭으로 그 지점의 로컬 스케일(m/px)을 구한다."""
-    return VEHICLE_WIDTH_M[vehicle_class] / pixel_width * class_conf
+def local_scale(pixel_width: float, vehicle_class: str) -> float:
+    """차종 기준 폭 / 픽셀 폭. 검출 신뢰도가 물리적인 길이를 줄이면 안 된다."""
+    if not math.isfinite(pixel_width) or pixel_width <= 0:
+        raise ValueError("기준 차량 픽셀 폭은 양의 유한 값이어야 합니다")
+    return VEHICLE_WIDTH_M[vehicle_class] / pixel_width
 
 
 def get_footpoint(rect: tuple) -> tuple[float, float]:
@@ -127,7 +131,7 @@ def local_scale_estimates(
     estimates = []
     for det in reference_pool:
         pixel_width, rect = rects[id(det)]
-        scale = local_scale(pixel_width, det.vehicle_class, det.confidence)
+        scale = local_scale(pixel_width, det.vehicle_class)
         _, footpoint_y = get_footpoint(rect)
         estimates.append((scale, det.confidence, footpoint_y))
     return estimates
@@ -135,6 +139,25 @@ def local_scale_estimates(
 
 DEPTH_OUTLIER_WINDOW_RATIO = 0.15
 DEPTH_OUTLIER_MAX_DEVIATION_RATIO = 0.5
+
+
+def scale_estimates_with_history(
+    detections: Iterable[VehicleDetection],
+    camera_height_px: float,
+    cctv_id: str | None = None,
+) -> list[tuple[float, float, float]]:
+    """현재 기준 차량과 같은 프레임 높이의 누적 관측치만 합친다."""
+    estimates = local_scale_estimates(filter_road_detections(detections, cctv_id))
+    if cctv_id is None:
+        return estimates
+    accumulated = [
+        (obs.scale, obs.confidence, obs.footpoint_y)
+        for obs in calibration_store.load_observations(cctv_id)
+        if obs.camera_height_px == camera_height_px
+    ]
+    if not accumulated:
+        return estimates
+    return reject_local_outliers(estimates + accumulated, camera_height_px)
 
 
 def reject_local_outliers(
@@ -203,6 +226,17 @@ def combine_scales(
     """
     scale, _error = combine_scales_with_error(estimates, target_y_px, camera_height_px)
     return scale
+
+
+def depth_is_supported(estimates: list[tuple[float, float, float]], target_y_px: float) -> bool:
+    """기준 차량의 관측 깊이 범위 안인지 검사. 범위 안의 실측 정확도를 보장하지 않는다."""
+    depths = [y for scale, confidence, y in estimates
+              if math.isfinite(scale) and scale > 0 and math.isfinite(confidence)
+              and confidence > 0 and math.isfinite(y)]
+    if not depths or not math.isfinite(target_y_px):
+        return False
+    # float32 접지점 직렬화의 반올림만 허용한다.
+    return min(depths) - 1e-6 <= target_y_px <= max(depths) + 1e-6
 
 
 def depth_weight(

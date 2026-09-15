@@ -53,3 +53,17 @@ def test_register_camera_overwrites_existing_entry(tmp_path):
     camera = camera_registry.get_camera("cam_l1", path=path)
     assert camera["wall_width_m"] == 4.5
     assert camera["still_url"] == "https://example.com/new.jpg"
+
+
+@pytest.mark.parametrize("source", [
+    None,
+    {"still_url": "other.mp4"},
+    {"still_url": "clip.mp4", "calibration_source_cctv_id": "alias"},
+])
+def test_calibration_alias_rejects_missing_mismatched_or_nested_source(monkeypatch, source):
+    cameras = {"alias": {"still_url": "clip.mp4", "calibration_source_cctv_id": "original"}}
+    if source is not None:
+        cameras["original"] = source
+    monkeypatch.setattr(camera_registry, "load_cameras", lambda path: cameras)
+    with pytest.raises(ValueError):
+        camera_registry.calibration_source_id("alias")

@@ -19,4 +19,5 @@ class ReadingCore:
     verdict: dict[str, str] = field(default_factory=dict)  # {"pump-3.5": "PASS", ...}
     confidence: float = 0.0  # 차종별 판정 확률 중 가장 보수적인(작은) 값
     calibration_error_m: float = 0.0  # 이 프레임 캘리브레이션 추정 오차
-    method: str = "yolov11_homography_v1"
+    method: str = "yolov11_homography_v5"
+    quality_flags: list[str] = field(default_factory=list)

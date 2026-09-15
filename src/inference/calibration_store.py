@@ -20,7 +20,12 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src import camera_registry
+from src.inference.road_region import get_road_region
+
 DEFAULT_CALIBRATION_DIR = Path(__file__).parent.parent.parent / "data" / "calibration"
+# v1은 신뢰도 곱셈, v2는 letterbox 여백 왜곡 포함. 원본 좌표에서 재수집한다.
+SCALE_VERSION = "vehicle_width_over_pixels_native_masks_v3"
 
 
 @dataclass
@@ -52,7 +57,11 @@ def make_observation(
 
 
 def _path_for(cctv_id: str, calibration_dir: Path) -> Path:
-    return calibration_dir / f"{cctv_id}.jsonl"
+    source_id = camera_registry.calibration_source_id(cctv_id)
+    region = get_road_region(cctv_id)
+    # 과거 관측치에는 마스크가 없어 사후 ROI 필터링 불가. 새 버전에서 다시 수집.
+    suffix = f".roi-{region.version}" if region else ""
+    return calibration_dir / SCALE_VERSION / f"{source_id}{suffix}.jsonl"
 
 
 def append_observations(

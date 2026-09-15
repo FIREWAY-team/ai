@@ -25,7 +25,9 @@ import numpy as np
 
 from goldenlane_vehicle_specs import load_vehicles_json, resolve_margin_m
 from src.inference import yolo
-from src.postprocess.passable_prob import build_reading_core, compute_widths, find_narrowest_widths
+from src.inference.homography import scale_estimates_with_history
+from src.inference.road_region import filter_road_detections
+from src.postprocess.passable_prob import build_reading_core, compute_widths, depth_quality_flags, find_narrowest_widths
 from src.schemas import ReadingCore
 
 
@@ -72,6 +74,8 @@ def process_frame(
     compute_widths() 참고.
     """
     detections = yolo.detect_vehicles(frame)
+    # 빈 검출에서도 실제 입력 해상도를 검사한다. 출력 검출은 원본 그대로 유지.
+    road_detections = filter_road_detections(detections, cctv_id, frame.shape)
 
     if target_y_px is not None:
         wall_width_m, obstacle_width_m, effective_width_m, calibration_error_m = compute_widths(
@@ -88,6 +92,8 @@ def process_frame(
 
     resolved_vehicles = vehicles_json if vehicles_json is not None else load_vehicles_json()
     resolved_margin = margin_m if margin_m is not None else resolve_margin_m()
+    estimates = scale_estimates_with_history(road_detections, camera_height_px, cctv_id)
+    quality_flags = depth_quality_flags(road_detections, estimates, camera_height_px, target_y_px)
     return build_reading_core(
         wall_width_m,
         obstacle_width_m,
@@ -96,6 +102,7 @@ def process_frame(
         resolved_vehicles,
         resolved_margin,
         calibration_error_m=calibration_error_m,
+        quality_flags=quality_flags,
     )
 
 

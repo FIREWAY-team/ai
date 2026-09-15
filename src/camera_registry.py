@@ -42,6 +42,23 @@ def get_camera(cctv_id: str, path: Path = DEFAULT_CAMERAS_YAML) -> dict[str, Any
     return cameras[cctv_id]
 
 
+def calibration_source_id(cctv_id: str, path: Path = DEFAULT_CAMERAS_YAML) -> str:
+    """동일 원본 영상을 배치한 데모 카메라는 원본 관측치 저장소를 공유한다."""
+    cameras = load_cameras(path)
+    camera = cameras.get(cctv_id, {})
+    source_id = camera.get("calibration_source_cctv_id", cctv_id)
+    if source_id == cctv_id:
+        return cctv_id
+    source = cameras.get(source_id)
+    if source is None:
+        raise ValueError(f"{cctv_id}: 캘리브레이션 원본 {source_id} 미등록")
+    if source.get("calibration_source_cctv_id", source_id) != source_id:
+        raise ValueError(f"{cctv_id}: 캘리브레이션 원본은 다른 별칭을 참조할 수 없습니다")
+    if not camera.get("still_url") or camera["still_url"] != source.get("still_url"):
+        raise ValueError(f"{cctv_id}: 캘리브레이션 원본 영상 불일치")
+    return source_id
+
+
 def register_camera(
     cctv_id: str,
     wall_width_m: float,

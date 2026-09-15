@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 
 from src.inference import calibration_store
+from src import camera_registry
 
 
 def test_load_observations_empty_when_never_accumulated(tmp_path):
@@ -34,17 +35,17 @@ def test_append_accumulates_across_multiple_calls(tmp_path):
     # 이 저장소의 핵심 목적(여러 시점에 걸쳐 누적).
     first = [calibration_store.make_observation(0.01, 0.9, 100.0, 1080.0)]
     second = [calibration_store.make_observation(0.011, 0.8, 200.0, 1080.0)]
-    calibration_store.append_observations("cctv_2", first, calibration_dir=tmp_path)
-    calibration_store.append_observations("cctv_2", second, calibration_dir=tmp_path)
+    calibration_store.append_observations("cctv_history_test", first, calibration_dir=tmp_path)
+    calibration_store.append_observations("cctv_history_test", second, calibration_dir=tmp_path)
 
-    loaded = calibration_store.load_observations("cctv_2", calibration_dir=tmp_path)
+    loaded = calibration_store.load_observations("cctv_history_test", calibration_dir=tmp_path)
     assert len(loaded) == 2
 
 
 def test_append_empty_list_creates_no_file(tmp_path):
     calibration_store.append_observations("cctv_3", [], calibration_dir=tmp_path)
     assert calibration_store.load_observations("cctv_3", calibration_dir=tmp_path) == []
-    assert not (tmp_path / "cctv_3.jsonl").exists()
+    assert not list(tmp_path.rglob("*.jsonl"))
 
 
 def test_load_observations_filters_by_max_age_days(tmp_path):
@@ -97,3 +98,19 @@ def test_different_cameras_stored_separately(tmp_path):
     )
     assert len(calibration_store.load_observations("cctv_a", calibration_dir=tmp_path)) == 1
     assert len(calibration_store.load_observations("cctv_b", calibration_dir=tmp_path)) == 1
+
+
+def test_alias_reads_and_appends_to_original_without_copying_observations(monkeypatch, tmp_path):
+    cameras = {
+        "original": {"still_url": "clip.mp4"},
+        "alias": {"still_url": "clip.mp4", "calibration_source_cctv_id": "original"},
+    }
+    monkeypatch.setattr(camera_registry, "load_cameras", lambda path: cameras)
+    first = calibration_store.make_observation(.01, .9, 100., 720.)
+    second = calibration_store.make_observation(.02, .9, 200., 720.)
+    calibration_store.append_observations("original", [first], calibration_dir=tmp_path)
+    assert calibration_store.load_observations("alias", calibration_dir=tmp_path) == [first]
+    calibration_store.append_observations("alias", [second], calibration_dir=tmp_path)
+    assert calibration_store.load_observations("original", calibration_dir=tmp_path) == [first, second]
+    assert (tmp_path / calibration_store.SCALE_VERSION / "original.jsonl").exists()
+    assert not (tmp_path / calibration_store.SCALE_VERSION / "alias.jsonl").exists()

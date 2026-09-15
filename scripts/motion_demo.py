@@ -15,11 +15,15 @@ import numpy as np
 
 from goldenlane_vehicle_specs import load_vehicles_json, resolve_margin_m
 from src.inference import yolo
-from src.inference.homography import combine_scales, get_footpoint, local_scale_estimates, vehicle_pixel_width
-from src.postprocess.passable_prob import build_reading_core, find_narrowest_widths, obstacle_widths_m
+from src.inference.road_region import filter_road_detections
+from src.inference.homography import combine_scales_with_error, depth_is_supported, get_footpoint, scale_estimates_with_history, vehicle_pixel_width
+from src.postprocess.passable_prob import (
+    OBSTACLE_EXCLUDED_CLASSES, OBSTACLE_MIN_CONFIDENCE,
+    build_reading_core, calibrated_obstacle_widths, depth_quality_flags, find_narrowest_widths,
+)
 from src.schemas import ReadingCore
 
-MOTION_METHOD = "yolov11_homography_v1_motion_aware"
+MOTION_METHOD = "yolov11_homography_v5_motion_aware"
 SPEED_THRESHOLD_M_PER_SEC = 0.3
 IOU_MATCH_THRESHOLD = 0.3
 
@@ -82,15 +86,23 @@ def classify_motion(
 ) -> dict[int, str]:
     """같은 카메라(고정 시점)에서 짧은 시간차로 받은 프레임들에 걸쳐
     위치 변화량을 속도(m/s)로 환산해 정지/이동을 판별한다.
+    frame_idx는 같은 간격으로 입력된 전체 프레임 기준이며 검출 누락도 포함한다.
     """
+    if not math.isfinite(frame_interval_sec) or frame_interval_sec <= 0:
+        raise ValueError("프레임 간격은 유한한 양수여야 합니다")
     results: dict[int, str] = {}
     for track_id, positions in tracked_vehicles.items():
         if len(positions) < 2:
             results[track_id] = "UNKNOWN"  # 한 프레임에만 나타남 — 판단 보류
             continue
-        (x1, y1, _), (x2, y2, _) = positions[0], positions[-1]
+        if any(current[2] <= previous[2] for previous, current in zip(positions, positions[1:])):
+            results[track_id] = "UNKNOWN"
+            continue
+        (x1, y1, first_frame), (x2, y2, last_frame) = positions[0], positions[-1]
         displacement_m = math.hypot(x2 - x1, y2 - y1) * scale_m_per_px
-        speed = displacement_m / ((len(positions) - 1) * frame_interval_sec)
+        # 검출이 두 번이어도 9프레임 간격이면 경과 시간은 9프레임분이다.
+        elapsed_sec = (last_frame - first_frame) * frame_interval_sec
+        speed = displacement_m / elapsed_sec
         results[track_id] = "MOVING" if speed >= speed_threshold_m_per_sec else "STATIONARY"
     return results
 
@@ -108,11 +120,11 @@ def run_motion_aware_demo(
     """정지/이동 판별까지 포함한 단일 카메라 데모 흐름.
 
     wall_width_m은 카메라 등록 시 지도 실측으로 확정한 값(`configs/cameras.yaml`).
-    obstacle_widths_m()은 이 스크립트 안에서만 STATIONARY로 분류된 차량만
-    골라 감싸 호출한다 — 메인 passable_prob.py 시그니처는 바꾸지 않는다.
+    STATIONARY와 UNKNOWN 차량은 장애물 후보로 유지한다. MOVING으로
+    확인된 차량만 제외한다. 보행자·검출 신뢰도 필터는 폭 계산에서 적용한다.
 
     target_y_px — 명시하면(기존 동작) 그 지점만 계산한다. None이면(기본,
-    2026-09-15부터) find_narrowest_widths로 정지 차량들 중 병목 지점을
+    2026-09-15부터) find_narrowest_widths로 장애물 후보들 중 병목 지점을
     자동으로 찾는다 — 이미지 경로(pipeline.process_frame)는 이미 이렇게
     바뀌었는데 영상 경로는 고정 지점에 남아있어서, 병목탐색으로 잡히는
     장애물을 놓치는 카메라가 있었다(실측 검증 중 발견). 이동 판별용
@@ -120,7 +132,9 @@ def run_motion_aware_demo(
     (STATIONARY/MOVING을 가르는 속도 임계값 비교용) target_y_px가 없으면
     화면 70% 지점 기준으로 한 번만 계산한다.
 
-    cctv_id — 주어지면 find_narrowest_widths()로 그대로 전달돼 이 카메라에
+    cctv_id — 이동 속도 판별과 폭 계산 모두 누적 관측치를 사용한다.
+    마지막 프레임에 기준 차량이 없어도 같은 프레임 높이의 과거 관측치로
+    계산 가능하다. find_narrowest_widths()에도 그대로 전달돼 이 카메라에
     누적된 과거 기준 차량 관측치(calibration_store)를 현재 프레임 것과
     합쳐 스케일을 계산한다. 이미지 경로(pipeline.process_frame)는 이미
     cctv_id를 받는데 영상 경로는 빠져 있었다(2026-09-15 발견 — 영상
@@ -132,34 +146,51 @@ def run_motion_aware_demo(
 
     frames_detections = [yolo.detect_vehicles(f) for f in frames]
     last_detections = frames_detections[-1]
+    frames_detections = [
+        filter_road_detections(dets, cctv_id, frame.shape)
+        for dets, frame in zip(frames_detections, frames)
+    ]
+    if last_detections and not frames_detections[-1]:
+        raise ValueError("도로 영역 안에 판정할 검출이 없습니다")
 
     motion_target_y = target_y_px if target_y_px is not None else camera_height_px * 0.7
-    estimates = local_scale_estimates(last_detections)
-    motion_scale = combine_scales(estimates, motion_target_y, camera_height_px)
+    estimates = scale_estimates_with_history(frames_detections[-1], camera_height_px, cctv_id)
+    motion_scale, scale_error = combine_scales_with_error(estimates, motion_target_y, camera_height_px)
     if motion_scale is None:
         raise ValueError("기준 차량을 찾지 못해 스케일을 계산할 수 없습니다")
 
     tracks, last_frame_assignment = track_vehicles(frames_detections)
     motion = classify_motion(tracks, motion_scale, frame_interval_sec)
+    quality_flags = []
+    # 외삽한 이동 스케일로 차량을 제외했다면 빈 도로 PASS로 확정하지 않는다.
+    moving_obstacles = [det for tid, det in last_frame_assignment.items()
+                        if motion.get(tid) == "MOVING" and det.confidence >= OBSTACLE_MIN_CONFIDENCE
+                        and det.vehicle_class not in OBSTACLE_EXCLUDED_CLASSES]
+    if moving_obstacles and not depth_is_supported(estimates, motion_target_y):
+        quality_flags.append("motion_scale_outside_calibration_depth")
+    quality_flags.extend(depth_quality_flags(frames_detections[-1], estimates, camera_height_px, target_y_px))
 
-    stationary_detections = [
-        det for tid, det in last_frame_assignment.items() if motion.get(tid) == "STATIONARY"
+    # 관측 부족은 이동 증거가 아니다. 처음 등장한 차량도 현재 통로를 막을 수 있다.
+    blocking_detections = [
+        det for tid, det in last_frame_assignment.items() if motion.get(tid) != "MOVING"
     ]
 
     if target_y_px is not None:
-        obstacle_width_m = obstacle_widths_m(
-            stationary_detections, motion_scale, target_y_px, camera_height_px
+        obstacle_width_m, obstacle_relative_error = calibrated_obstacle_widths(
+            blocking_detections, estimates, target_y_px, camera_height_px
         )
         effective_width_m = wall_width_m - obstacle_width_m
-        calibration_error_m = 0.0
-    elif not stationary_detections:
+        calibration_error_m = max(scale_error / motion_scale, obstacle_relative_error) * wall_width_m
+    elif not blocking_detections:
         obstacle_width_m = 0.0
         effective_width_m = wall_width_m
         calibration_error_m = 0.0
     else:
+        blocking_estimates = scale_estimates_with_history(blocking_detections, camera_height_px, cctv_id)
+        quality_flags.extend(depth_quality_flags(blocking_detections, blocking_estimates, camera_height_px))
         _wall, obstacle_width_m, effective_width_m, calibration_error_m, _bottleneck_y = (
             find_narrowest_widths(
-                stationary_detections, camera_height_px, wall_width_m, cctv_id=cctv_id
+                blocking_detections, camera_height_px, wall_width_m, cctv_id=cctv_id
             )
         )
 
@@ -174,4 +205,5 @@ def run_motion_aware_demo(
         resolved_margin,
         calibration_error_m=calibration_error_m,
         method=MOTION_METHOD,
+        quality_flags=quality_flags,
     )

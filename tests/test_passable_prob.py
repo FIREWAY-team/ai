@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import math
 
+import cv2
+import numpy as np
+import pytest
+
 from goldenlane_vehicle_specs import (
     MIN_MARGIN_M,
     resolve_margin_m,
@@ -20,6 +24,39 @@ from src.postprocess.passable_prob import (
 from tests.helpers import make_detection
 
 VEHICLES_JSON = {"pump-3.5": 2.3, "pump-8": 2.5}
+
+
+def irregular_vehicle():
+    det = make_detection("승용차", .9, 60, 70, 151, 191, shape=(300, 300))
+    mask = np.zeros((300, 300), dtype=np.uint8)
+    contour = np.array([[160, 70], [210, 70], [210, 140], [100, 260], [60, 260], [60, 200]])
+    cv2.fillPoly(mask, [contour], 1)
+    det.mask = mask.astype(bool)
+    return det
+
+
+def test_empty_corner_of_rotated_box_does_not_block_road():
+    det = irregular_vehicle()
+    assert not det.mask[58:63].any()
+    assert obstacle_widths_m([det], .02, target_y_px=60., camera_height_px=300.) == 0.
+
+
+def test_hole_between_mask_rows_does_not_block_road():
+    det = make_detection("승용차", .9, 10, 10, 90, 180)
+    det.mask[90:111] = False
+    assert obstacle_widths_m([det], .02, target_y_px=100., camera_height_px=200.) == 0.
+
+
+def test_bottleneck_candidate_still_intersects_irregular_vehicle_mask():
+    det = irregular_vehicle()
+    _, obstacle, _, _, target = find_narrowest_widths([det], 300., 4.2)
+    assert obstacle == pytest.approx(1.8)
+    assert det.mask[int(round(target))].any()
+
+
+def test_fractional_target_uses_existing_pixel_tolerance():
+    det = make_detection("승용차", .9, 10, 10, 90, 180)
+    assert obstacle_widths_m([det], .02, 190., 200.) == pytest.approx(89 * .02)
 
 
 def test_resolve_margin_m_defaults_to_min():
@@ -336,4 +373,4 @@ def test_build_reading_core_shape():
     assert set(reading.verdict.keys()) == set(VEHICLES_JSON.keys())
     assert all(status in {"PASS", "UNCERTAIN", "FAIL"} for status in reading.verdict.values())
     assert len(reading.detected_objects) == 1
-    assert reading.method == "yolov11_homography_v1"
+    assert reading.method == "yolov11_homography_v5"

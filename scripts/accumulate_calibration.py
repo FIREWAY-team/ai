@@ -1,5 +1,5 @@
 """등록된 카메라들의 현재 still(또는 영상)에서 기준 차량 관측치를 뽑아
-카메라별 누적 저장소(data/calibration/{cctv_id}.jsonl)에 추가한다
+카메라별 누적 저장소(data/calibration/{SCALE_VERSION}/)에 추가한다
 (정확도개선방안 A-4 확장).
 
 CCTV는 고정 카메라라 "화면 y좌표 → 실제 깊이" 관계는 시간이 지나도 안 변한다.
@@ -41,6 +41,7 @@ from src.adapters.http_adapter import fetch_frame  # noqa: E402
 from src.adapters.video_adapter import extract_frames  # noqa: E402
 from src.inference import calibration_store, yolo  # noqa: E402
 from src.inference.homography import local_scale_estimates  # noqa: E402
+from src.inference.road_region import filter_road_detections, get_road_region  # noqa: E402
 
 VIDEO_SUFFIXES = (".mp4", ".mov", ".avi", ".mkv")
 MAX_VIDEO_FRAMES = 10
@@ -65,12 +66,17 @@ def accumulate_camera(
     관측치를 뽑아 누적 저장한다. 저장한 관측치 개수를 반환한다(0이면
     기준 차량이 하나도 안 잡혔다는 뜻). calibration_dir은 테스트에서
     실제 저장소를 건드리지 않도록 바꿔 끼울 수 있게 노출한다."""
+    source_id = camera_registry.calibration_source_id(cctv_id)
+    if source_id != cctv_id and camera_registry.get_camera(source_id)["still_url"] != still_url:
+        raise ValueError(f"{cctv_id}: 다른 영상을 원본 캘리브레이션에 누적할 수 없습니다")
+    if get_road_region(cctv_id) and camera_registry.get_camera(source_id)["still_url"] != still_url:
+        raise ValueError(f"{cctv_id}: 도로 영역 원본이 아닌 영상을 누적할 수 없습니다")
     frames = _load_frames_for_still_url(still_url)
 
     observations = []
     for frame in frames:
         detections = yolo.detect_vehicles(frame)
-        estimates = local_scale_estimates(detections)
+        estimates = local_scale_estimates(filter_road_detections(detections, cctv_id, frame.shape))
         camera_height_px = frame.shape[0]
         observations.extend(
             calibration_store.make_observation(
@@ -93,13 +99,18 @@ def accumulate_all() -> None:
             "등록된 카메라가 없습니다. 먼저 scripts/register_camera.py로 등록하세요."
         )
 
+    processed_sources: set[str] = set()
     for cctv_id, config in cameras.items():
         still_url = config.get("still_url")
         if not still_url:
             print(f"[스킵] {cctv_id}: still_url 없음")
             continue
         try:
+            source_id = camera_registry.calibration_source_id(cctv_id)
+            if source_id in processed_sources:
+                continue
             n = accumulate_camera(cctv_id, still_url)
+            processed_sources.add(source_id)
         except Exception as error:  # noqa: BLE001 — 카메라 하나 실패해도 나머지는 계속
             print(f"[실패] {cctv_id}: {error}")
             continue

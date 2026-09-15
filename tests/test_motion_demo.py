@@ -1,10 +1,59 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
+
+from src.inference import calibration_store
 
 import scripts.motion_demo as motion_demo
 from scripts.motion_demo import _iou, classify_motion, run_motion_aware_demo, track_vehicles
 from tests.helpers import make_detection
+
+
+@pytest.mark.parametrize("target_y", [None, 190.])
+@pytest.mark.parametrize("wall_width, expected", [(3.8, "FAIL"), (8., "PASS")])
+def test_new_vehicle_counts_as_obstacle_without_assuming_motion(monkeypatch, target_y, wall_width, expected):
+    car = make_detection("승용차", .9, 10, 10, 90, 180)
+    detections = iter([[], [car]])
+    monkeypatch.setattr(motion_demo.yolo, "detect_vehicles", lambda frame: next(detections))
+    result = run_motion_aware_demo(
+        [np.zeros((200, 300, 3), dtype=np.uint8)] * 2,
+        wall_width, target_y, 200., vehicles_json={"pump-8": 2.5},
+    )
+    assert result.obstacle_width_m == pytest.approx(1.8)
+    assert result.effective_width_m == pytest.approx(wall_width - 1.8)
+    assert result.verdict == {"pump-8": expected}
+
+
+@pytest.mark.parametrize("target_y", [None, 190.])
+def test_moving_vehicle_does_not_hide_new_unknown_vehicle(monkeypatch, target_y):
+    shape = (300, 400)
+    moving_before = make_detection("승용차", .9, 10, 10, 90, 180, shape=shape)
+    moving_after = make_detection("승용차", .9, 10, 40, 90, 180, shape=shape)
+    new_car = make_detection("승용차", .9, 220, 10, 90, 180, shape=shape)
+    detections = iter([[moving_before], [moving_after, new_car]])
+    monkeypatch.setattr(motion_demo.yolo, "detect_vehicles", lambda frame: next(detections))
+    result = run_motion_aware_demo(
+        [np.zeros((*shape, 3), dtype=np.uint8)] * 2,
+        3.8, target_y, 300., vehicles_json={"pump-8": 2.5},
+    )
+    assert result.obstacle_width_m == pytest.approx(1.8)
+    assert result.verdict == {"pump-8": "FAIL"}
+
+
+@pytest.mark.parametrize("target_y", [None, 190.])
+def test_motion_uses_history_when_last_frame_has_no_reference(monkeypatch, target_y):
+    person = make_detection("보행자", .9, 10, 10, 90, 180)
+    monkeypatch.setattr(motion_demo.yolo, "detect_vehicles", lambda frame: [person])
+    monkeypatch.setattr(calibration_store, "load_observations", lambda camera: [
+        calibration_store.make_observation(.02, .9, 190., 200.),
+        calibration_store.make_observation(.03, .9, 190., 200.),
+    ])
+    result = run_motion_aware_demo(
+        [np.zeros((200, 300, 3), dtype=np.uint8)] * 2, 4.2, target_y, 200., cctv_id="alias",
+    )
+    assert result.calibration_error_m == pytest.approx(.84)
+    assert result.obstacle_width_m == 0.
 
 
 def test_iou_identical_boxes_is_one():
@@ -33,6 +82,38 @@ def test_classify_motion_unknown_with_single_observation():
     tracks = {0: [(0.0, 0.0, 0)]}
     result = classify_motion(tracks, scale_m_per_px=0.02)
     assert result[0] == "UNKNOWN"
+
+
+@pytest.mark.parametrize("interval, expected", [(1., "STATIONARY"), (.5, "STATIONARY"), (.1, "MOVING")])
+def test_motion_uses_frame_indices_across_missing_detections(interval, expected):
+    tracks = {0: [(0., 0., 2), (50., 0., 11)]}
+    assert classify_motion(tracks, .02, frame_interval_sec=interval)[0] == expected
+
+
+@pytest.mark.parametrize("indices", [(2, 2), (5, 2), (2, 4, 3, 5)])
+def test_motion_unknown_when_observation_times_do_not_increase(indices):
+    tracks = {0: [(float(i * 50), 0., frame_idx) for i, frame_idx in enumerate(indices)]}
+    assert classify_motion(tracks, .02)[0] == "UNKNOWN"
+
+
+@pytest.mark.parametrize("interval", [0., -1., float("nan"), float("inf")])
+def test_motion_rejects_invalid_frame_interval(interval):
+    with pytest.raises(ValueError, match="프레임 간격"):
+        classify_motion({0: [(0., 0., 0), (50., 0., 1)]}, .02, frame_interval_sec=interval)
+
+
+@pytest.mark.parametrize("target_y", [None, 190.])
+def test_vehicle_reappearing_after_detection_gap_remains_an_obstacle(monkeypatch, target_y):
+    first = make_detection("승용차", .9, 10, 10, 90, 180)
+    last = make_detection("승용차", .9, 40, 10, 90, 180)
+    detections = iter([[first]] + [[]] * 8 + [[last]])
+    monkeypatch.setattr(motion_demo.yolo, "detect_vehicles", lambda frame: next(detections))
+    result = run_motion_aware_demo(
+        [np.zeros((200, 300, 3), dtype=np.uint8)] * 10,
+        3.8, target_y, 200., vehicles_json={"pump-8": 2.5},
+    )
+    assert result.obstacle_width_m == pytest.approx(1.8)
+    assert result.verdict == {"pump-8": "FAIL"}
 
 
 def test_track_vehicles_matches_same_vehicle_across_frames():

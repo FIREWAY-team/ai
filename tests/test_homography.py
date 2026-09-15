@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
+from src.inference import calibration_store
 from src.inference.homography import (
     combine_scales,
     combine_scales_with_error,
@@ -10,6 +13,7 @@ from src.inference.homography import (
     local_scale,
     local_scale_estimates,
     reject_local_outliers,
+    scale_estimates_with_history,
     smoothed_scale,
     vehicle_pixel_width,
 )
@@ -24,15 +28,32 @@ def test_vehicle_pixel_width_returns_short_side():
 
 
 def test_local_scale_uses_known_vehicle_width():
-    # 승용차 폭 1.8m가 픽셀 폭 90px로 찍혔다면 스케일은 0.02 m/px (신뢰도 1.0일 때)
-    scale = local_scale(pixel_width=90, vehicle_class="승용차", class_conf=1.0)
+    # 승용차 기준 폭 1.8m가 90px로 찍혔다면 스케일은 0.02 m/px.
+    scale = local_scale(pixel_width=90, vehicle_class="승용차")
     assert math.isclose(scale, 0.02, rel_tol=1e-6)
 
 
-def test_local_scale_scales_with_confidence():
-    full_conf = local_scale(90, "승용차", 1.0)
-    half_conf = local_scale(90, "승용차", 0.5)
-    assert math.isclose(half_conf, full_conf / 2, rel_tol=1e-6)
+def test_same_mask_has_same_physical_scale_at_different_confidence():
+    full = local_scale_estimates([make_detection("승용차", 1., 10, 10, 91, 180)])[0]
+    half = local_scale_estimates([make_detection("승용차", .5, 10, 10, 91, 180)])[0]
+    assert full[0] == half[0] == pytest.approx(.02)
+    assert full[1] == 1. and half[1] == .5
+
+
+def test_confidence_weights_reference_without_shrinking_its_scale():
+    detections = [
+        make_detection("승용차", 1., 10, 10, 91, 180),
+        make_detection("승용차", .5, 150, 10, 46, 180),
+    ]
+    estimates = local_scale_estimates(detections)
+    scale = combine_scales(estimates, target_y_px=189, camera_height_px=200)
+    assert scale == pytest.approx((.02 * 1. + .04 * .5) / 1.5)
+
+
+@pytest.mark.parametrize("width", [0., -1., math.inf, math.nan])
+def test_invalid_reference_pixel_width_is_rejected(width):
+    with pytest.raises(ValueError, match="픽셀 폭"):
+        local_scale(width, "승용차")
 
 
 def test_get_footpoint_is_bottom_center():
@@ -191,3 +212,10 @@ def test_reject_local_outliers_noop_under_three_estimates():
     estimates = [(0.05, 0.7, 500.0), (0.01, 0.9, 100.0)]
     result = reject_local_outliers(estimates, camera_height_px=1000.0)
     assert result == estimates
+def test_history_excludes_other_frame_heights(monkeypatch):
+    monkeypatch.setattr(calibration_store, "load_observations", lambda camera: [
+        calibration_store.make_observation(.02, .9, 100., 200.),
+        calibration_store.make_observation(9., .9, 900., 1080.),
+    ])
+    assert scale_estimates_with_history([], 200., "alias") == [(.02, .9, 100.)]
+    assert scale_estimates_with_history([], 720., "alias") == []

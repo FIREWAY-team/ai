@@ -2,19 +2,20 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable
+from typing import Callable, Iterable
 
-from src.inference import calibration_store
+import numpy as np
+
 from src.inference.homography import (
     combine_scales_with_error,
+    depth_is_supported,
     get_footpoint,
-    local_scale_estimates,
-    reject_local_outliers,
+    scale_estimates_with_history,
     vehicle_pixel_width,
     vehicle_x_span,
-    vehicle_y_span,
 )
 from src.inference.yolo import VehicleDetection
+from src.inference.road_region import filter_road_detections
 from src.schemas import ReadingCore
 
 # verdict()의 로지스틱 기울기 — z 자체가 이미 검증된 margin_m 경계이므로
@@ -32,11 +33,8 @@ VERDICT_STEEPNESS = 3.0
 # 이전에는 depth_weight(footpoint 거리 기반 지수감쇠) 임계값(0.3)으로
 # "다른 깊이"를 걸렀는데, 문턱이 관대해서(카메라 높이의 ~30%) 골목 한쪽에
 # 세로로 줄줄이 주차된 차들이 전부 같은 지점의 장애물로 합산되는 버그가
-# 있었다(정확도개선방안 문서 밖 실측 데이터로 2026-09-11 발견 — 벽 실측폭보다
-# 장애물 합이 더 커져 effective_width_m이 음수가 나옴). 차량은 화면에서
-# 세로로 어느 구간을 "점유"하는지가 이미 vehicle_y_span()으로 정확히
-# 나오므로, 근사치인 footpoint-거리 감쇠 대신 실제 점유 구간 포함 여부로
-# 판정한다.
+# 있었다. 현재는 회전 사각형의 빈 모서리까지 포함하지 않도록 해당 행 부근의
+# 실제 세그멘테이션 마스크 점유 여부를 확인한다.
 OBSTACLE_Y_TOLERANCE_RATIO = 0.005
 OBSTACLE_Y_TOLERANCE_MIN_PX = 1.0
 
@@ -68,6 +66,31 @@ def _stable_sigmoid(x: float) -> float:
     return e / (1 + e)
 
 
+def _mask_has_pixels_at_y(mask: np.ndarray, target_y: float, tolerance: float) -> bool:
+    start = max(0, math.ceil(target_y - tolerance))
+    stop = min(mask.shape[0], math.floor(target_y + tolerance) + 1)
+    return start < stop and bool(np.any(mask[start:stop]))
+
+
+def depth_quality_flags(
+    detections: Iterable[VehicleDetection],
+    estimates: list[tuple[float, float, float]],
+    camera_height_px: float,
+    target_y_px: float | None = None,
+) -> list[str]:
+    """자동 탐색은 전체 장애물, 지점 지정은 해당 행의 장애물 깊이를 검사한다."""
+    tolerance = max(OBSTACLE_Y_TOLERANCE_MIN_PX, camera_height_px * OBSTACLE_Y_TOLERANCE_RATIO)
+    for det in detections:
+        if det.vehicle_class in OBSTACLE_EXCLUDED_CLASSES or det.confidence < OBSTACLE_MIN_CONFIDENCE:
+            continue
+        if target_y_px is not None and not _mask_has_pixels_at_y(det.mask, target_y_px, tolerance):
+            continue
+        _, rect = vehicle_pixel_width(det.mask)
+        if not depth_is_supported(estimates, float(get_footpoint(rect)[1])):
+            return ["outside_calibration_depth"]
+    return []
+
+
 def obstacle_widths_m(
     detections: Iterable[VehicleDetection],
     scale_m_per_px: float,
@@ -80,15 +103,15 @@ def obstacle_widths_m(
     화면에 찍힌 모든 검출을 원근(깊이) 구분 없이 그냥 더하면, 도로를 따라
     앞뒤로 늘어선 차량·사람까지 전부 합산돼 실제보다 훨씬 좁은 도로로
     오판한다(그 지점을 동시에 막고 있는 장애물만 그 지점의 통과폭에 영향을
-    준다). 차량이 화면 세로로 실제 점유하는 구간(vehicle_y_span)에
-    target_y_px가 들어갈 때만 포함한다.
+    준다). target_y_px 부근에 실제 마스크 픽셀이 있을 때만 포함한다.
+    회전 사각형의 빈 모서리는 차량이 없는 행까지 확장될 수 있으므로 제외한다.
     min_confidence 미만인 검출은 제외한다(정확도개선방안 A-3와 같은 이유 —
     신뢰도가 낮은 검출, 특히 mAP가 낮은 클래스는 차량이 아닌 것을 잘못
     인식했을 가능성이 있고, 그런 오검출의 마스크는 비정상적으로 커서 장애물
     합계를 실측 벽 폭보다 크게 만들 수 있다). OBSTACLE_EXCLUDED_CLASSES(사람
     등 스스로 비킬 수 있는 대상)도 제외한다.
 
-    y_span이 겹쳐 살아남은 차량끼리도 가로 위치(vehicle_x_span)가 겹치면
+    해당 행의 마스크 점유 검사를 통과한 차량끼리도 가로 위치(vehicle_x_span)가 겹치면
     같은 차선에 앞뒤로 붙어 있는 것이지 나란히 서서 폭을 나눠 막는 게
     아니다(2026-09-15, cctv_4 실측 검증 중 발견 — 원근 압축으로 앞차
     끝과 뒷차 시작의 세로 구간이 몇 px 겹쳐서, 뻥 뚫린 골목인데
@@ -96,22 +119,59 @@ def obstacle_widths_m(
     폭을 더하지 않고 그중 가장 넓은 차 1대분만 반영하고, 가로 위치가
     겹치지 않는 차량군끼리만(다른 차선에서 동시에 좁히는 경우) 합산한다.
     """
+    width, _relative_error = _obstacle_widths_at_depth(
+        detections, target_y_px, camera_height_px, min_confidence,
+        lambda _y: (scale_m_per_px, 0.0),
+    )
+    return width
+
+
+def calibrated_obstacle_widths(
+    detections: Iterable[VehicleDetection],
+    estimates: list[tuple[float, float, float]],
+    target_y_px: float,
+    camera_height_px: float,
+    min_confidence: float = OBSTACLE_MIN_CONFIDENCE,
+) -> tuple[float, float]:
+    """차량별 접지점에서 환산한 장애물 폭과 사용 스케일의 최대 상대 오차.
+
+    target_y_px는 포함할 장애물을 고르는 행이다. 차량 전체 픽셀 폭의
+    환산에는 그 차량의 접지점을 사용해야 다른 깊이의 스케일이 섞이지 않는다.
+    """
+    return _obstacle_widths_at_depth(
+        detections, target_y_px, camera_height_px, min_confidence,
+        lambda y: combine_scales_with_error(estimates, y, camera_height_px),
+    )
+
+
+def _obstacle_widths_at_depth(
+    detections: Iterable[VehicleDetection],
+    target_y_px: float,
+    camera_height_px: float,
+    min_confidence: float,
+    scale_at_y: Callable[[float], tuple[float | None, float]],
+) -> tuple[float, float]:
     tolerance_px = max(OBSTACLE_Y_TOLERANCE_MIN_PX, camera_height_px * OBSTACLE_Y_TOLERANCE_RATIO)
-    spans: list[tuple[float, float, float]] = []  # (x_min, x_max, pixel_width)
+    spans: list[tuple[float, float, float]] = []  # (x_min, x_max, width_m)
+    max_relative_error = 0.0
     for det in detections:
         if det.vehicle_class in OBSTACLE_EXCLUDED_CLASSES:
             continue
         if det.confidence < min_confidence:
             continue
-        pixel_width, rect = vehicle_pixel_width(det.mask)
-        y_min, y_max = vehicle_y_span(rect)
-        if not (y_min - tolerance_px <= target_y_px <= y_max + tolerance_px):
+        if not _mask_has_pixels_at_y(det.mask, target_y_px, tolerance_px):
             continue
+        pixel_width, rect = vehicle_pixel_width(det.mask)
+        _, footpoint_y = get_footpoint(rect)
+        scale, error = scale_at_y(float(footpoint_y))
+        if scale is None:
+            raise ValueError("장애물 접지점의 스케일을 계산할 기준 차량이 없습니다")
+        max_relative_error = max(max_relative_error, error / scale if scale else 0.0)
         x_min, x_max = vehicle_x_span(rect)
-        spans.append((x_min, x_max, pixel_width))
+        spans.append((x_min, x_max, pixel_width * scale))
 
     if not spans:
-        return 0.0
+        return 0.0, 0.0
 
     # 같은 target_y_px를 점유한다고 잡힌 차량이라도, 가로 위치(차선)가 겹치면
     # 앞뒤로(같은 차선에) 겹쳐 있는 것이지 나란히 서서 폭을 나눠 막는 게
@@ -122,17 +182,17 @@ def obstacle_widths_m(
     total = 0.0
     cluster_end = spans[0][1]
     cluster_max_width = spans[0][2]
-    for x_min, x_max, pixel_width in spans[1:]:
+    for x_min, x_max, width_m in spans[1:]:
         if x_min < cluster_end:
             cluster_end = max(cluster_end, x_max)
-            cluster_max_width = max(cluster_max_width, pixel_width)
+            cluster_max_width = max(cluster_max_width, width_m)
         else:
             total += cluster_max_width
             cluster_end = x_max
-            cluster_max_width = pixel_width
+            cluster_max_width = width_m
     total += cluster_max_width
 
-    return total * scale_m_per_px
+    return total, max_relative_error
 
 
 def compute_widths(
@@ -163,23 +223,21 @@ def compute_widths(
     오차(실측 검증 30~40%대)를 줄인다. None이면(또는 아직 누적된 게 없으면)
     기존처럼 현재 프레임만으로 계산한다 — 하위호환.
     """
-    estimates = local_scale_estimates(detections)
-    if cctv_id is not None:
-        accumulated = calibration_store.load_observations(cctv_id)
-        if accumulated:
-            estimates = estimates + [
-                (obs.scale, obs.confidence, obs.footpoint_y) for obs in accumulated
-            ]
-            estimates = reject_local_outliers(estimates, camera_height_px)
-
+    filtered = filter_road_detections(detections, cctv_id)
+    if detections and not filtered:
+        raise ValueError("도로 영역 안에 판정할 검출이 없습니다")
+    detections = filtered
+    estimates = scale_estimates_with_history(detections, camera_height_px, cctv_id)
     scale, scale_error = combine_scales_with_error(estimates, target_y_px, camera_height_px)
     if scale is None:
         raise ValueError("로컬 스케일을 계산할 기준 차량이 없습니다")
 
     relative_error = (scale_error / scale) if scale else 0.0
-    calibration_error_m = relative_error * wall_width_m
-
-    obstacle_width_m = obstacle_widths_m(detections, scale, target_y_px, camera_height_px)
+    obstacle_width_m, obstacle_relative_error = calibrated_obstacle_widths(
+        detections, estimates, target_y_px, camera_height_px
+    )
+    # 기존 측정 행의 오차와 실제 환산에 쓴 차량별 오차 중 큰 값을 유지한다.
+    calibration_error_m = max(relative_error, obstacle_relative_error) * wall_width_m
     effective_width_m = wall_width_m - obstacle_width_m
     return wall_width_m, obstacle_width_m, effective_width_m, calibration_error_m
 
@@ -202,13 +260,19 @@ def find_narrowest_widths(
     채택한다. 반환값 마지막 원소는 채택된 target_y_px다. cctv_id는
     compute_widths()로 그대로 전달한다(누적 캘리브레이션 관측치 사용).
     """
+    detections = filter_road_detections(detections, cctv_id)
     if not detections:
         raise ValueError("병목 지점을 찾을 장애물 검출이 없습니다")
 
     candidate_ys: set[float] = set()
+    tolerance_px = max(OBSTACLE_Y_TOLERANCE_MIN_PX, camera_height_px * OBSTACLE_Y_TOLERANCE_RATIO)
     for det in detections:
         _, rect = vehicle_pixel_width(det.mask)
         _, footpoint_y = get_footpoint(rect)
+        if not _mask_has_pixels_at_y(det.mask, footpoint_y, tolerance_px):
+            # 회전 사각형 접지점이 마스크 밖이면 실제 점유 행으로 옮겨 병목 누락 방지.
+            occupied_rows = np.flatnonzero(np.any(det.mask, axis=1))
+            footpoint_y = float(occupied_rows[np.argmin(np.abs(occupied_rows - footpoint_y))])
         candidate_ys.add(footpoint_y)
 
     narrowest: tuple[float, float, float, float, float] | None = None
@@ -298,12 +362,19 @@ def build_reading_core(
     vehicles_json: dict[str, float],
     margin_m: float,
     calibration_error_m: float = 0.0,
-    method: str = "yolov11_homography_v1",
+    method: str = "yolov11_homography_v5",
+    quality_flags: Iterable[str] = (),
 ) -> ReadingCore:
     """판정까지 마친 뒤 팀 공용 ReadingCore로 조립 (스펙 1장 입출력 계약)."""
     verdict_map, confidence = build_reading_verdict(
         effective_width_m, vehicles_json, margin_m, calibration_error_m
     )
+    flags = set(quality_flags)
+    if effective_width_m < 0:
+        flags.add("negative_effective_width")
+    if flags:
+        verdict_map = {vehicle: "UNCERTAIN" if status == "PASS" else status
+                       for vehicle, status in verdict_map.items()}
     return ReadingCore(
         wall_width_m=wall_width_m,
         obstacle_width_m=obstacle_width_m,
@@ -320,4 +391,5 @@ def build_reading_core(
         confidence=confidence,
         calibration_error_m=calibration_error_m,
         method=method,
+        quality_flags=sorted(flags),
     )

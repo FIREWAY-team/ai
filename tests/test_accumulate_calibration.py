@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 import scripts.accumulate_calibration as accumulate_calibration
 from src.inference import calibration_store
@@ -59,3 +60,29 @@ def test_accumulate_camera_returns_zero_when_no_reference_vehicles(monkeypatch, 
 
     assert saved == 0
     assert calibration_store.load_observations("cctv_empty", calibration_dir=tmp_path) == []
+
+
+def test_accumulate_all_processes_shared_footage_once(monkeypatch):
+    cameras = {
+        "alias": {"still_url": "clip.mp4", "calibration_source_cctv_id": "original"},
+        "original": {"still_url": "clip.mp4"},
+    }
+    monkeypatch.setattr(accumulate_calibration.camera_registry, "load_cameras", lambda *args: cameras)
+    calls = []
+    monkeypatch.setattr(accumulate_calibration, "accumulate_camera",
+                        lambda camera, url: calls.append((camera, url)) or 1)
+    accumulate_calibration.accumulate_all()
+    assert calls == [("alias", "clip.mp4")]
+
+
+def test_accumulate_alias_rejects_other_input_before_loading_frames(monkeypatch, tmp_path):
+    cameras = {
+        "alias": {"still_url": "clip.mp4", "calibration_source_cctv_id": "original"},
+        "original": {"still_url": "clip.mp4"},
+    }
+    monkeypatch.setattr(accumulate_calibration.camera_registry, "load_cameras", lambda *args: cameras)
+    monkeypatch.setattr(accumulate_calibration, "_load_frames_for_still_url",
+                        lambda url: pytest.fail("다른 원본 프레임 로드"))
+    with pytest.raises(ValueError, match="다른 영상"):
+        accumulate_calibration.accumulate_camera("alias", "other.mp4", calibration_dir=tmp_path)
+    assert list(tmp_path.iterdir()) == []
