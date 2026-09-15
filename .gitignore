@@ -235,7 +235,11 @@ motion_demo_result.json
 
 # 로컬 검증용 원본 CCTV 이미지 + 개인 학습 자료 — 실제 배포용 CCTV 이미지는
 # S3로 가고, 이 폴더는 로컬 전용 작업 공간이라 레포에는 안 올린다.
-data/
+data/*
+# 예외: 모란(성남동) 12개 후보 CCTV 판정 결과 — backend cctv_readings 스키마
+# 그대로 내보낸 인계 파일이라, 이미지/영상 원본과 달리 저장소에 올려서 팀원이
+# 바로 가져다 쓸 수 있게 한다.
+!data/cctv_readings_moran.json
 
 # YOLO 파인튜닝 산출물(체크포인트, 로그, 플롯) — *.pt는 이미 위에서 빠지지만
 # results.csv/args.yaml/이미지 플롯 등 나머지 파일까지 잡아준다. 최종
