@@ -7,11 +7,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-MODEL_WEIGHTS = "yolo11n-seg.pt"  # Ultralytics, AGPL-3.0 / 상업 라이선스 — 파인튜닝 후에도
+MODEL_WEIGHTS = str(Path(__file__).resolve().parents[2] / "yolo11n-seg.pt")  # Ultralytics, AGPL-3.0 / 상업 라이선스 — 파인튜닝 후에도
 # 같은 파일명을 덮어써서 교체한다(경로 자체는 안 바뀜, scripts/*.py도 그대로 씀).
 
 # 로컬 스케일용 클래스명 매핑 (스펙 2-1장 검출 클래스 확장).
@@ -59,6 +60,8 @@ _model_cache: dict[str, Any] = {}
 
 def _load_model(weights: str = MODEL_WEIGHTS) -> Any:
     if weights not in _model_cache:
+        if not Path(weights).is_file():
+            raise FileNotFoundError(f"파인튜닝 모델 파일이 없습니다: {weights}")
         from ultralytics import YOLO  # 무거운 의존성 — 실제 추론 시점에만 로드
 
         _model_cache[weights] = YOLO(weights)

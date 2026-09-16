@@ -8,12 +8,14 @@
 """
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 DEFAULT_CAMERAS_YAML = Path(__file__).parent.parent / "configs" / "cameras.yaml"
+MEASURED_WIDTH_SOURCES = frozenset({"kakao_map", "naver_map", "field_measurement"})
 
 
 def _load_raw(path: Path = DEFAULT_CAMERAS_YAML) -> dict[str, Any]:
@@ -57,6 +59,38 @@ def calibration_source_id(cctv_id: str, path: Path = DEFAULT_CAMERAS_YAML) -> st
     if not camera.get("still_url") or camera["still_url"] != source.get("still_url"):
         raise ValueError(f"{cctv_id}: 캘리브레이션 원본 영상 불일치")
     return source_id
+
+
+def wall_width_quality_flags(
+    cctv_id: str | None,
+    wall_width_m: float,
+    path: Path = DEFAULT_CAMERAS_YAML,
+    *,
+    allow_estimated_wall_width: bool = False,
+) -> list[str]:
+    """등록 카메라는 측정 출처·입력 폭·동일 영상 원본의 폭이 모두 일치해야 한다.
+
+    ID 없는 직접 호출은 기존 계약대로 호출자가 측정 폭을 제공한다.
+    데모에서는 명시적으로 등록된 유사 골목 평균 폭도 사용할 수 있다.
+    """
+    if cctv_id is None:
+        return []
+    cameras = load_cameras(path)
+    source_id = calibration_source_id(cctv_id, path)
+    allowed_sources = MEASURED_WIDTH_SOURCES
+    if allow_estimated_wall_width:
+        allowed_sources = allowed_sources | {"estimated_avg_of_similar_alleys"}
+    for camera_id in {cctv_id, source_id}:
+        camera = cameras.get(camera_id, {})
+        width = camera.get("wall_width_m")
+        if (
+            camera.get("wall_width_source") not in allowed_sources
+            or not isinstance(width, (int, float))
+            or not math.isfinite(width) or width <= 0
+            or not math.isclose(width, wall_width_m, rel_tol=1e-9, abs_tol=1e-9)
+        ):
+            return ["unverified_wall_width"]
+    return []
 
 
 def register_camera(

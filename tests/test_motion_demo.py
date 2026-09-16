@@ -4,10 +4,11 @@ import numpy as np
 import pytest
 
 from src.inference import calibration_store
+from src.inference.yolo import VehicleDetection
 
 import scripts.motion_demo as motion_demo
 from scripts.motion_demo import _iou, classify_motion, run_motion_aware_demo, track_vehicles
-from tests.helpers import make_detection
+from tests.helpers import make_detection, make_rotated_rect_mask
 
 
 @pytest.mark.parametrize("target_y", [None, 190.])
@@ -78,15 +79,80 @@ def test_classify_motion_moving_when_fast_displacement():
     assert result[0] == "MOVING"
 
 
+@pytest.mark.parametrize("last_x", [100., 105.])
+def test_motion_before_last_five_frames_does_not_hide_recent_stop(last_x):
+    xs = [0., 25., 50., 75., 100., 100., 100., 100., 100., last_x]
+    tracks = {0: [(x, 100., i) for i, x in enumerate(xs)]}
+    assert classify_motion(tracks, .02)[0] == "STATIONARY"
+
+
+def test_last_two_still_frames_do_not_override_motion_in_last_five():
+    xs = [0., 0., 0., 0., 0., 0., 50., 100., 100., 100.]
+    tracks = {0: [(x, 100., i) for i, x in enumerate(xs)]}
+    assert classify_motion(tracks, .02)[0] == "MOVING"
+
+
+def test_recent_motion_is_not_diluted_by_first_five_stationary_frames():
+    xs = [0., 0., 0., 0., 0., 0., 20., 40., 60., 80.]
+    tracks = {0: [(x, 100., i) for i, x in enumerate(xs)]}
+    assert classify_motion(tracks, .02)[0] == "MOVING"
+
+
+def test_movement_within_five_frames_counts_even_if_vehicle_returns_to_start():
+    xs = [0., 50., 100., 50., 0.]
+    tracks = {0: [(x, 100., i) for i, x in enumerate(xs)]}
+    assert classify_motion(tracks, .02)[0] == "MOVING"
+
+
+def test_window_uses_frame_numbers_not_last_five_detections():
+    tracks = {0: [(0., 100., 0), (30., 100., 1), (60., 100., 2), (90., 100., 4), (120., 100., 9)]}
+    assert classify_motion(tracks, .02)[0] == "UNKNOWN"
+
+
+def test_all_tracks_share_the_input_video_window_end():
+    tracks = {0: [(0., 100., 0), (100., 100., 4)]}
+    assert classify_motion(tracks, .02, last_frame_idx=9)[0] == "UNKNOWN"
+
+
+def test_latest_detection_jitter_alone_is_not_enough_to_exclude_vehicle():
+    tracks = {0: [(0., 100., 0), (0., 100., 1), (0., 100., 2), (20., 100., 3)]}
+    assert classify_motion(tracks, .02)[0] != "MOVING"
+
+
+def test_continuing_motion_is_still_recognized():
+    tracks = {0: [(0., 100., 0), (50., 100., 1), (100., 100., 2), (150., 100., 3)]}
+    assert classify_motion(tracks, .02)[0] == "MOVING"
+
+
+@pytest.mark.parametrize("target_y", [None, 189.])
+@pytest.mark.parametrize("recent_motion", [False, True])
+def test_last_five_frames_control_obstacle_exclusion(monkeypatch, target_y, recent_motion):
+    shape = (270, 400)
+    xs = (10, 30, 50, 70, 70, 70, 110, 150, 150, 150) if recent_motion else (10, 30, 50, 70, 70, 70, 70, 70, 70, 70)
+    detections = iter([
+        [make_detection("승용차", .9, x, 10, 91, 180, shape=shape)]
+        for x in xs
+    ])
+    monkeypatch.setattr(motion_demo.yolo, "detect_vehicles", lambda _: next(detections))
+    result = run_motion_aware_demo(
+        [np.zeros((*shape, 3), np.uint8)] * 10, 3.8, target_y, 270.,
+        vehicles_json={"pump-8": 2.5},
+    )
+    assert result.quality_flags == []
+    assert result.obstacle_width_m == pytest.approx(0. if recent_motion else 1.8)
+    assert result.effective_width_m == pytest.approx(3.8 if recent_motion else 2.)
+    assert result.verdict == {"pump-8": "PASS" if recent_motion else "FAIL"}
+
+
 def test_classify_motion_unknown_with_single_observation():
     tracks = {0: [(0.0, 0.0, 0)]}
     result = classify_motion(tracks, scale_m_per_px=0.02)
     assert result[0] == "UNKNOWN"
 
 
-@pytest.mark.parametrize("interval, expected", [(1., "STATIONARY"), (.5, "STATIONARY"), (.1, "MOVING")])
+@pytest.mark.parametrize("interval, expected", [(1., "STATIONARY"), (.5, "MOVING"), (.1, "MOVING")])
 def test_motion_uses_frame_indices_across_missing_detections(interval, expected):
-    tracks = {0: [(0., 0., 2), (50., 0., 11)]}
+    tracks = {0: [(0., 0., 2), (0., 0., 7), (50., 0., 11)]}
     assert classify_motion(tracks, .02, frame_interval_sec=interval)[0] == expected
 
 
@@ -123,6 +189,15 @@ def test_track_vehicles_matches_same_vehicle_across_frames():
     tracks, last_assignment = track_vehicles([frame1, frame2])
     assert len(tracks) == 1  # 같은 차량으로 매칭돼야 한다
     assert len(last_assignment) == 1
+
+
+def test_stationary_box_with_changing_mask_shape_is_not_motion():
+    frames = [[VehicleDetection(
+        "트럭", .95, (95., 75., 265., 245.),
+        make_rotated_rect_mask((400, 400), (180, 160), 140, 80, angle),
+    )] for angle in (20, 20, 70, 70, 70)]
+    tracks, _ = track_vehicles(frames)
+    assert classify_motion(tracks, .05, last_frame_idx=4)[0] == "STATIONARY"
 
 
 def test_track_vehicles_separates_distinct_vehicles():

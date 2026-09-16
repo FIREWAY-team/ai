@@ -23,6 +23,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from src.camera_registry import wall_width_quality_flags
 from goldenlane_vehicle_specs import load_vehicles_json, resolve_margin_m
 from src.inference import yolo
 from src.inference.homography import scale_estimates_with_history
@@ -43,6 +44,7 @@ class FrameJudgeJob:
     vehicles_json: dict[str, float] | None = None
     margin_m: float | None = None
     cctv_id: str | None = None
+    allow_estimated_wall_width: bool = False
 
 
 def process_frame(
@@ -53,6 +55,8 @@ def process_frame(
     vehicles_json: dict[str, float] | None = None,
     margin_m: float | None = None,
     cctv_id: str | None = None,
+    *,
+    allow_estimated_wall_width: bool = False,
 ) -> ReadingCore:
     """사진 한 장 → ReadingCore (스펙 2장 전체 파이프라인).
 
@@ -94,6 +98,9 @@ def process_frame(
     resolved_margin = margin_m if margin_m is not None else resolve_margin_m()
     estimates = scale_estimates_with_history(road_detections, camera_height_px, cctv_id)
     quality_flags = depth_quality_flags(road_detections, estimates, camera_height_px, target_y_px)
+    quality_flags.extend(wall_width_quality_flags(
+        cctv_id, wall_width_m, allow_estimated_wall_width=allow_estimated_wall_width,
+    ))
     return build_reading_core(
         wall_width_m,
         obstacle_width_m,
@@ -115,6 +122,7 @@ def _run_job(job: FrameJudgeJob) -> ReadingCore:
         job.vehicles_json,
         job.margin_m,
         job.cctv_id,
+        allow_estimated_wall_width=job.allow_estimated_wall_width,
     )
 
 

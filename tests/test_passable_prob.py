@@ -373,4 +373,4 @@ def test_build_reading_core_shape():
     assert set(reading.verdict.keys()) == set(VEHICLES_JSON.keys())
     assert all(status in {"PASS", "UNCERTAIN", "FAIL"} for status in reading.verdict.values())
     assert len(reading.detected_objects) == 1
-    assert reading.method == "yolov11_homography_v5"
+    assert reading.method == "yolov11_homography_v7"

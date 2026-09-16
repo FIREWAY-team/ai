@@ -16,7 +16,7 @@ from src.inference.homography import (
 )
 from src.inference.yolo import VehicleDetection
 from src.inference.road_region import filter_road_detections
-from src.schemas import ReadingCore
+from src.schemas import MeasurementUnavailableError, ReadingCore
 
 # verdict()의 로지스틱 기울기 — z 자체가 이미 검증된 margin_m 경계이므로
 # prob는 판정과 별개로 채우는 표시용 부가값이다 (임의 확률 임계값으로
@@ -165,7 +165,7 @@ def _obstacle_widths_at_depth(
         _, footpoint_y = get_footpoint(rect)
         scale, error = scale_at_y(float(footpoint_y))
         if scale is None:
-            raise ValueError("장애물 접지점의 스케일을 계산할 기준 차량이 없습니다")
+            raise MeasurementUnavailableError("insufficient_calibration", "장애물 접지점의 스케일을 계산할 기준 차량이 없습니다")
         max_relative_error = max(max_relative_error, error / scale if scale else 0.0)
         x_min, x_max = vehicle_x_span(rect)
         spans.append((x_min, x_max, pixel_width * scale))
@@ -225,12 +225,12 @@ def compute_widths(
     """
     filtered = filter_road_detections(detections, cctv_id)
     if detections and not filtered:
-        raise ValueError("도로 영역 안에 판정할 검출이 없습니다")
+        raise MeasurementUnavailableError("no_road_detections", "도로 영역 안에 판정할 검출이 없습니다")
     detections = filtered
     estimates = scale_estimates_with_history(detections, camera_height_px, cctv_id)
     scale, scale_error = combine_scales_with_error(estimates, target_y_px, camera_height_px)
     if scale is None:
-        raise ValueError("로컬 스케일을 계산할 기준 차량이 없습니다")
+        raise MeasurementUnavailableError("insufficient_calibration", "로컬 스케일을 계산할 기준 차량이 없습니다")
 
     relative_error = (scale_error / scale) if scale else 0.0
     obstacle_width_m, obstacle_relative_error = calibrated_obstacle_widths(
@@ -255,14 +255,14 @@ def find_narrowest_widths(
     임의로 정한 한 지점(예: 화면의 특정 비율 지점)만 보고 판정하면 실제
     병목을 놓칠 수 있다 — 한 지점이라도 통과 못 하면 전체가 FAIL이어야
     하므로(스펙 4장 오류 비대칭성: FAIL을 PASS로 오판하는 쪽이 훨씬 위험),
-    검출된 장애물들의 footpoint(깊이)를 전부 후보 지점으로 놓고 각각
+    검출된 장애물들의 footpoint와 마스크 점유가 바뀌는 행을 후보로 놓고
     compute_widths()를 돌려 effective_width_m이 가장 작은(가장 좁은) 지점을
     채택한다. 반환값 마지막 원소는 채택된 target_y_px다. cctv_id는
     compute_widths()로 그대로 전달한다(누적 캘리브레이션 관측치 사용).
     """
     detections = filter_road_detections(detections, cctv_id)
     if not detections:
-        raise ValueError("병목 지점을 찾을 장애물 검출이 없습니다")
+        raise MeasurementUnavailableError("no_road_detections", "병목 지점을 찾을 장애물 검출이 없습니다")
 
     candidate_ys: set[float] = set()
     tolerance_px = max(OBSTACLE_Y_TOLERANCE_MIN_PX, camera_height_px * OBSTACLE_Y_TOLERANCE_RATIO)
@@ -275,8 +275,24 @@ def find_narrowest_widths(
             footpoint_y = float(occupied_rows[np.argmin(np.abs(occupied_rows - footpoint_y))])
         candidate_ys.add(footpoint_y)
 
+    # 장애물 집합은 허용폭을 포함한 점유 구간의 시작·끝에서만 바뀐다.
+    # 구간 내부도 검사해 소수점 위치의 겹침과 마스크 구멍을 놓치지 않는다.
+    change_rows: set[float] = set()
+    for det in detections:
+        if det.vehicle_class in OBSTACLE_EXCLUDED_CLASSES or det.confidence < OBSTACLE_MIN_CONFIDENCE:
+            continue
+        occupied = np.any(det.mask, axis=1)
+        edges = np.diff(np.pad(occupied.astype(np.int8), (1, 1)))
+        change_rows.update((0., float(len(occupied) - 1)))
+        for start, stop in zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)):
+            change_rows.add(max(0., float(start) - tolerance_px))
+            change_rows.add(min(float(len(occupied) - 1), float(stop - 1) + tolerance_px))
+
+    boundaries = sorted(change_rows)
+    change_rows.update((left + right) / 2 for left, right in zip(boundaries, boundaries[1:]))
+    targets = sorted(candidate_ys) + sorted(change_rows - candidate_ys)
     narrowest: tuple[float, float, float, float, float] | None = None
-    for target_y in candidate_ys:
+    for target_y in targets:
         wall_m, obstacle_m, effective_m, calib_err_m = compute_widths(
             detections, target_y, camera_height_px, wall_width_m, cctv_id=cctv_id
         )
@@ -362,7 +378,7 @@ def build_reading_core(
     vehicles_json: dict[str, float],
     margin_m: float,
     calibration_error_m: float = 0.0,
-    method: str = "yolov11_homography_v5",
+    method: str = "yolov11_homography_v7",
     quality_flags: Iterable[str] = (),
 ) -> ReadingCore:
     """판정까지 마친 뒤 팀 공용 ReadingCore로 조립 (스펙 1장 입출력 계약)."""

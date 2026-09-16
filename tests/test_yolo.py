@@ -52,3 +52,15 @@ def test_empty_scene_needs_no_mask_conversion(monkeypatch):
     model.predict.return_value = [SimpleNamespace(masks=None)]
     monkeypatch.setattr(yolo, "_load_model", lambda _: model)
     assert yolo.detect_vehicles(np.zeros((108, 192, 3), np.uint8)) == []
+
+
+def test_default_model_path_is_independent_of_working_directory(monkeypatch, tmp_path):
+    from pathlib import Path
+    monkeypatch.chdir(tmp_path)
+    assert Path(yolo.MODEL_WEIGHTS).is_absolute()
+    assert Path(yolo.MODEL_WEIGHTS).name == 'yolo11n-seg.pt'
+
+
+def test_missing_model_does_not_trigger_download(tmp_path):
+    with pytest.raises(FileNotFoundError, match='파인튜닝 모델'):
+        yolo._load_model(str(tmp_path / 'missing.pt'))

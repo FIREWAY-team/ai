@@ -250,3 +250,6 @@ runs_finetune/
 # AI Hub 데이터 다운로드용 CLI 스크립트 — 프로젝트 코드가 아니라 외부 도구
 # 다운로드본이라 레포에 포함하지 않는다 (필요하면 README 안내로 각자 받는다).
 aihubshell
+
+# 담당자별 S3 연동 요청 문서는 팀 공유 대상으로 추적
+!docs/handoff/*.md

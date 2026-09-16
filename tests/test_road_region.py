@@ -135,3 +135,21 @@ def test_all_excluded_does_not_become_pass_from_old_history(region_config, detec
             motion_demo.run_motion_aware_demo([frame, frame], 5, 100, 200, cctv_id="alias")
         else:
             pipeline.process_frame(frame, 5, 100, 200, cctv_id="alias")
+
+
+@pytest.mark.parametrize("camera", ["cctv_3", "cctv_moran_a39"])
+def test_a39_region_keeps_alley_vehicles_but_excludes_fenced_parking(monkeypatch, camera):
+    media = "cctv_atypical_road_000481_00001.png"
+    cameras = {
+        "cctv_3": {"still_url": media},
+        "cctv_moran_a39": {"still_url": media, "calibration_source_cctv_id": "cctv_3"},
+    }
+    monkeypatch.setattr(camera_registry, "load_cameras", lambda path: cameras)
+    # 원본에서 확인한 세 위치. 울타리에 걸친 골목 차량은 마스크 전체 유지.
+    left = make_detection("승용차", .9, 289, 582, 360, 395, (1080, 1920))
+    boundary = make_detection("승용차", .8, 1029, 441, 166, 162, (1080, 1920))
+    parking = make_detection("승용차", .9, 1365, 541, 408, 221, (1080, 1920))
+    original = boundary.mask.copy()
+    kept = road_region.filter_road_detections([left, parking, boundary], camera, (1080, 1920, 3))
+    assert len(kept) == 2 and kept[0] is left and kept[1] is boundary
+    np.testing.assert_array_equal(kept[1].mask, original)

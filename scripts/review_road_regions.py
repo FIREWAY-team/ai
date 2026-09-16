@@ -16,7 +16,7 @@ from src.inference.yolo import detect_vehicles  # noqa: E402
 def main():
     output = Path(__file__).resolve().parents[1] / "data/road_region_review"
     output.mkdir(parents=True, exist_ok=True)
-    for source_id in ("cctv_2", "cctv_8"):
+    for source_id in ("cctv_2", "cctv_3", "cctv_8", "cctv_moran_a54"):
         region = get_road_region(source_id)
         frame = _load_frames_for_still_url(camera_registry.get_camera(source_id)["still_url"])[-1]
         detections = detect_vehicles(frame)

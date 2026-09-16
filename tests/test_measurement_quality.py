@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from scripts import motion_demo
-from src import pipeline
+from src import camera_registry, pipeline
 from src.adapters.common import build_reading
 from src.inference import calibration_store, yolo
 from src.inference.homography import depth_is_supported
@@ -35,6 +35,9 @@ def scene():
 @pytest.mark.parametrize("target", [None, 315.])
 @pytest.mark.parametrize("history", [False, True])
 def test_outside_depth_blocks_pass_and_in_range_history_restores_eligibility(monkeypatch, video, target, history):
+    monkeypatch.setattr(camera_registry, "load_cameras", lambda path: {
+        "quality_test": {"wall_width_m": 8., "wall_width_source": "field_measurement"},
+    })
     monkeypatch.setattr(yolo, "detect_vehicles", lambda _: scene())
     observations = [calibration_store.make_observation(.02, .9, 400., 500.)] if history else []
     monkeypatch.setattr(calibration_store, "load_observations", lambda _: observations)

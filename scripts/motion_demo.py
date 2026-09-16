@@ -14,17 +14,19 @@ import math
 import numpy as np
 
 from goldenlane_vehicle_specs import load_vehicles_json, resolve_margin_m
+from src.camera_registry import wall_width_quality_flags
 from src.inference import yolo
 from src.inference.road_region import filter_road_detections
-from src.inference.homography import combine_scales_with_error, depth_is_supported, get_footpoint, scale_estimates_with_history, vehicle_pixel_width
+from src.inference.homography import combine_scales_with_error, depth_is_supported, scale_estimates_with_history
 from src.postprocess.passable_prob import (
     OBSTACLE_EXCLUDED_CLASSES, OBSTACLE_MIN_CONFIDENCE,
     build_reading_core, calibrated_obstacle_widths, depth_quality_flags, find_narrowest_widths,
 )
-from src.schemas import ReadingCore
+from src.schemas import MeasurementUnavailableError, ReadingCore
 
-MOTION_METHOD = "yolov11_homography_v5_motion_aware"
+MOTION_METHOD = "yolov11_homography_v9_motion_aware"
 SPEED_THRESHOLD_M_PER_SEC = 0.3
+MOTION_WINDOW_FRAMES = 5
 IOU_MATCH_THRESHOLD = 0.3
 
 
@@ -46,7 +48,7 @@ def track_vehicles(
 ) -> tuple[dict[int, list[tuple[float, float, int]]], dict[int, yolo.VehicleDetection]]:
     """경량 IoU 트래커 — 새 모델 학습 없이 프레임 간 bbox를 매칭한다.
 
-    반환값: (track_id별 footpoint 궤적, 마지막 프레임에서 track_id → 검출 매핑).
+    반환값: (track_id별 bbox 중심 궤적, 마지막 프레임에서 track_id → 검출 매핑).
     """
     tracks: dict[int, list[tuple[float, float, int]]] = {}
     active: dict[int, yolo.VehicleDetection] = {}
@@ -68,9 +70,9 @@ def track_vehicles(
                 best_id = next_id
                 next_id += 1
                 tracks[best_id] = []
-            _, rect = vehicle_pixel_width(det.mask)
-            fx, fy = get_footpoint(rect)
-            tracks[best_id].append((fx, fy, frame_idx))
+            # 회전 마스크의 하단 꼭짓점 교체를 실제 차량 이동으로 오인하지 않는다.
+            x1, y1, x2, y2 = det.bbox
+            tracks[best_id].append(((x1 + x2) / 2, (y1 + y2) / 2, frame_idx))
             active[best_id] = det
             matched_ids.add(best_id)
             last_frame_assignment[best_id] = det
@@ -83,13 +85,20 @@ def classify_motion(
     scale_m_per_px: float,
     frame_interval_sec: float = 1.0,
     speed_threshold_m_per_sec: float = SPEED_THRESHOLD_M_PER_SEC,
+    *,
+    last_frame_idx: int | None = None,
 ) -> dict[int, str]:
     """같은 카메라(고정 시점)에서 짧은 시간차로 받은 프레임들에 걸쳐
     위치 변화량을 속도(m/s)로 환산해 정지/이동을 판별한다.
     frame_idx는 같은 간격으로 입력된 전체 프레임 기준이며 검출 누락도 포함한다.
+    입력 영상의 최근 5개 프레임 안의 연속 관측 이동거리를 합쳐 평균 속도를 계산한다.
+    그 구간에 관측이 두 번 미만이면 UNKNOWN이다.
     """
     if not math.isfinite(frame_interval_sec) or frame_interval_sec <= 0:
         raise ValueError("프레임 간격은 유한한 양수여야 합니다")
+    if last_frame_idx is None:
+        last_frame_idx = max((p[2] for positions in tracked_vehicles.values() for p in positions), default=-1)
+    first_window_frame = max(0, last_frame_idx - MOTION_WINDOW_FRAMES + 1)
     results: dict[int, str] = {}
     for track_id, positions in tracked_vehicles.items():
         if len(positions) < 2:
@@ -98,11 +107,19 @@ def classify_motion(
         if any(current[2] <= previous[2] for previous, current in zip(positions, positions[1:])):
             results[track_id] = "UNKNOWN"
             continue
-        (x1, y1, first_frame), (x2, y2, last_frame) = positions[0], positions[-1]
-        displacement_m = math.hypot(x2 - x1, y2 - y1) * scale_m_per_px
-        # 검출이 두 번이어도 9프레임 간격이면 경과 시간은 9프레임분이다.
+        # 최근 검출 5개가 아니라 최근 입력 프레임 5개. 누락된 프레임도 시간에 포함.
+        positions = [p for p in positions if first_window_frame <= p[2] <= last_frame_idx]
+        if len(positions) < 2:
+            results[track_id] = "UNKNOWN"
+            continue
+        first_frame, last_frame = positions[0][2], positions[-1][2]
+        distance_m = math.fsum(
+            math.hypot(current[0] - previous[0], current[1] - previous[1])
+            for previous, current in zip(positions, positions[1:])
+        ) * scale_m_per_px
+        # 1초 간격 5장 전체가 잡혔다면 첫·마지막 사이 경과 시간은 4초다.
         elapsed_sec = (last_frame - first_frame) * frame_interval_sec
-        speed = displacement_m / elapsed_sec
+        speed = distance_m / elapsed_sec
         results[track_id] = "MOVING" if speed >= speed_threshold_m_per_sec else "STATIONARY"
     return results
 
@@ -116,6 +133,8 @@ def run_motion_aware_demo(
     frame_interval_sec: float = 1.0,
     margin_m: float | None = None,
     cctv_id: str | None = None,
+    *,
+    allow_estimated_wall_width: bool = False,
 ) -> ReadingCore:
     """정지/이동 판별까지 포함한 단일 카메라 데모 흐름.
 
@@ -151,17 +170,19 @@ def run_motion_aware_demo(
         for dets, frame in zip(frames_detections, frames)
     ]
     if last_detections and not frames_detections[-1]:
-        raise ValueError("도로 영역 안에 판정할 검출이 없습니다")
+        raise MeasurementUnavailableError("no_road_detections", "도로 영역 안에 판정할 검출이 없습니다")
 
     motion_target_y = target_y_px if target_y_px is not None else camera_height_px * 0.7
     estimates = scale_estimates_with_history(frames_detections[-1], camera_height_px, cctv_id)
     motion_scale, scale_error = combine_scales_with_error(estimates, motion_target_y, camera_height_px)
     if motion_scale is None:
-        raise ValueError("기준 차량을 찾지 못해 스케일을 계산할 수 없습니다")
+        raise MeasurementUnavailableError("insufficient_calibration", "기준 차량을 찾지 못해 스케일을 계산할 수 없습니다")
 
     tracks, last_frame_assignment = track_vehicles(frames_detections)
-    motion = classify_motion(tracks, motion_scale, frame_interval_sec)
-    quality_flags = []
+    motion = classify_motion(tracks, motion_scale, frame_interval_sec, last_frame_idx=len(frames) - 1)
+    quality_flags = wall_width_quality_flags(
+        cctv_id, wall_width_m, allow_estimated_wall_width=allow_estimated_wall_width,
+    )
     # 외삽한 이동 스케일로 차량을 제외했다면 빈 도로 PASS로 확정하지 않는다.
     moving_obstacles = [det for tid, det in last_frame_assignment.items()
                         if motion.get(tid) == "MOVING" and det.confidence >= OBSTACLE_MIN_CONFIDENCE

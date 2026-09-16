@@ -4,8 +4,8 @@
     "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/SS_A_021(F1)_2020_11_30_16-002582.png",
     "edge_id": "cctv_moran_a18",
     "wall_width_m": 5.6,
-    "obstacle_width_m": 5.674162280034807,
-    "effective_width_m": -0.07416228003480718,
+    "obstacle_width_m": 7.512740128135888,
+    "effective_width_m": -1.912740128135888,
     "detected_objects": [
       {
         "vehicle_class": "승용차",
@@ -102,9 +102,9 @@
       "pump-3.5": "FAIL",
       "pump-8": "FAIL"
     },
-    "confidence": 3.842963990936692e-14,
-    "measured_at": "2026-09-15T17:19:02.523686+00:00",
-    "method": "yolov11_homography_v5",
+    "confidence": 1.006597267962733e-23,
+    "measured_at": "2026-09-16T17:14:33.405521+00:00",
+    "method": "yolov11_homography_v7",
     "calibration_error_m": 2.2249850611631454,
     "source_meta": {
       "scenario": "moran-oil-alley",
@@ -113,7 +113,7 @@
       "lat": 37.430393,
       "lon": 127.126909,
       "target_distance_m": 14.4,
-      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭을 시연용으로 배치",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "file",
       "wall_width_source": "naver_map",
       "width_reference_cctv_id": "cctv_2",
@@ -128,6 +128,11 @@
         ],
         "pass_blocked": true
       },
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed",
       "road_region": {
         "source_cctv_id": "cctv_2",
         "media_filename": "SS_A_021(F1)_2020_11_30_16-002582.png",
@@ -184,8 +189,8 @@
     "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000481_00001.png",
     "edge_id": "cctv_moran_a39",
     "wall_width_m": 7.6,
-    "obstacle_width_m": 7.626502601080315,
-    "effective_width_m": -0.026502601080315102,
+    "obstacle_width_m": 3.7913279165848914,
+    "effective_width_m": 3.808672083415108,
     "detected_objects": [
       {
         "vehicle_class": "승용차",
@@ -259,13 +264,13 @@
       }
     ],
     "verdict": {
-      "pump-3.5": "FAIL",
-      "pump-8": "FAIL"
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
     },
-    "confidence": 6.808420050775076e-14,
-    "measured_at": "2026-09-15T17:19:02.793307+00:00",
-    "method": "yolov11_homography_v5",
-    "calibration_error_m": 4.687258903735892,
+    "confidence": 0.9999998487096733,
+    "measured_at": "2026-09-16T17:14:33.916361+00:00",
+    "method": "yolov11_homography_v7",
+    "calibration_error_m": 2.93789319565983,
     "source_meta": {
       "scenario": "moran-oil-alley",
       "source_csv_id": "중원성남-A-39",
@@ -273,20 +278,83 @@
       "lat": 37.42997,
       "lon": 127.12687,
       "target_distance_m": 60.0,
-      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭을 시연용으로 배치",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "file",
       "wall_width_source": "naver_map",
       "width_reference_cctv_id": "cctv_3",
       "wall_width_scope": "source_footage",
       "calibration_source_cctv_id": "cctv_3",
-      "calibration_observations_available": 5,
+      "calibration_observations_available": 2,
       "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
       "measurement_quality": {
-        "flags": [
-          "negative_effective_width",
-          "outside_calibration_depth"
+        "flags": [],
+        "pass_blocked": false
+      },
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed",
+      "road_region": {
+        "source_cctv_id": "cctv_3",
+        "media_filename": "cctv_atypical_road_000481_00001.png",
+        "frame_size": [
+          1920,
+          1080
         ],
-        "pass_blocked": true
+        "polygon": [
+          [
+            970,
+            145
+          ],
+          [
+            1030,
+            145
+          ],
+          [
+            1070,
+            260
+          ],
+          [
+            1100,
+            350
+          ],
+          [
+            1190,
+            530
+          ],
+          [
+            1280,
+            740
+          ],
+          [
+            1380,
+            1079
+          ],
+          [
+            0,
+            1079
+          ],
+          [
+            0,
+            835
+          ],
+          [
+            640,
+            470
+          ],
+          [
+            830,
+            300
+          ],
+          [
+            920,
+            200
+          ]
+        ],
+        "annotation_source": "manual_visual",
+        "filter_rule": "keep_any_mask_overlap_v1",
+        "version": "b7e0f373dfa7fe5f"
       }
     }
   },
@@ -364,8 +432,8 @@
       "pump-8": "UNCERTAIN"
     },
     "confidence": 0.9999585148539932,
-    "measured_at": "2026-09-15T17:19:03.724398+00:00",
-    "method": "yolov11_homography_v5_motion_aware",
+    "measured_at": "2026-09-16T17:14:35.229856+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
     "calibration_error_m": 3.146719147039675,
     "source_meta": {
       "scenario": "moran-oil-alley",
@@ -374,7 +442,7 @@
       "lat": 37.430907,
       "lon": 127.127691,
       "target_distance_m": 76.0,
-      "footage_note": "실주소 미촬영 — 실측 검증된 유사 골목 영상을 판정용으로 대체 사용",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "video",
       "calibration_source_cctv_id": "cctv_8",
       "calibration_observations_available": 41,
@@ -383,6 +451,14 @@
         "flags": [],
         "pass_blocked": false
       },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_8",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed",
       "road_region": {
         "source_cctv_id": "cctv_8",
         "media_filename": "cctv_atypical_road_000420.mp4",
@@ -508,8 +584,8 @@
       "pump-8": "FAIL"
     },
     "confidence": 7.859163258802725e-11,
-    "measured_at": "2026-09-15T17:19:04.406080+00:00",
-    "method": "yolov11_homography_v5_motion_aware",
+    "measured_at": "2026-09-16T17:14:36.324478+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
     "calibration_error_m": 3.3424982877819476,
     "source_meta": {
       "scenario": "moran-oil-alley",
@@ -518,7 +594,7 @@
       "lat": 37.431354,
       "lon": 127.126925,
       "target_distance_m": 95.2,
-      "footage_note": "실주소 미촬영 — 실측 검증된 유사 골목 영상을 판정용으로 대체 사용",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "video",
       "calibration_source_cctv_id": "cctv_moran_a10",
       "calibration_observations_available": 0,
@@ -526,7 +602,15 @@
       "measurement_quality": {
         "flags": [],
         "pass_blocked": false
-      }
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_moran_a10",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
     }
   },
   {
@@ -613,8 +697,8 @@
       "pump-8": "UNCERTAIN"
     },
     "confidence": 1.0,
-    "measured_at": "2026-09-15T17:19:05.197500+00:00",
-    "method": "yolov11_homography_v5_motion_aware",
+    "measured_at": "2026-09-16T17:14:37.349003+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
     "calibration_error_m": 20.767770227086693,
     "source_meta": {
       "scenario": "moran-oil-alley",
@@ -623,7 +707,7 @@
       "lat": 37.430464,
       "lon": 127.128253,
       "target_distance_m": 110.7,
-      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭을 시연용으로 배치",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "video",
       "wall_width_source": "naver_map",
       "width_reference_cctv_id": "cctv_7",
@@ -634,7 +718,12 @@
       "measurement_quality": {
         "flags": [],
         "pass_blocked": false
-      }
+      },
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
     }
   },
   {
@@ -691,8 +780,8 @@
       "pump-8": "PASS"
     },
     "confidence": 0.9999999985941628,
-    "measured_at": "2026-09-15T17:19:05.845982+00:00",
-    "method": "yolov11_homography_v5_motion_aware",
+    "measured_at": "2026-09-16T17:14:38.167447+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
     "calibration_error_m": 0.22179896590660536,
     "source_meta": {
       "scenario": "moran-oil-alley",
@@ -701,7 +790,7 @@
       "lat": 37.4314,
       "lon": 127.12819,
       "target_distance_m": 145.1,
-      "footage_note": "실주소 미촬영 — 실측 검증된 유사 골목 영상을 판정용으로 대체 사용",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "video",
       "calibration_source_cctv_id": "cctv_9",
       "calibration_observations_available": 11,
@@ -709,7 +798,15 @@
       "measurement_quality": {
         "flags": [],
         "pass_blocked": false
-      }
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_9",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
     }
   },
   {
@@ -766,8 +863,8 @@
       "pump-8": "UNCERTAIN"
     },
     "confidence": 0.999999781573851,
-    "measured_at": "2026-09-15T17:19:06.549545+00:00",
-    "method": "yolov11_homography_v5_motion_aware",
+    "measured_at": "2026-09-16T17:14:39.110456+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
     "calibration_error_m": 1.9384167212928831,
     "source_meta": {
       "scenario": "moran-oil-alley",
@@ -776,7 +873,7 @@
       "lat": 37.43159,
       "lon": 127.12609,
       "target_distance_m": 145.4,
-      "footage_note": "실주소 미촬영 — 실측 검증된 유사 골목 영상을 판정용으로 대체 사용",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "video",
       "calibration_source_cctv_id": "cctv_moran_a34",
       "calibration_observations_available": 0,
@@ -784,7 +881,15 @@
       "measurement_quality": {
         "flags": [],
         "pass_blocked": false
-      }
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_moran_a34",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
     }
   },
   {
@@ -847,12 +952,12 @@
       }
     ],
     "verdict": {
-      "pump-3.5": "PASS",
-      "pump-8": "PASS"
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
     },
-    "confidence": 0.9999999994709827,
-    "measured_at": "2026-09-15T17:19:07.319676+00:00",
-    "method": "yolov11_homography_v5_motion_aware",
+    "confidence": 0.0,
+    "measured_at": "2026-09-16T13:38:54.302941+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
     "calibration_error_m": 0.0,
     "source_meta": {
       "scenario": "moran-oil-alley",
@@ -861,14 +966,90 @@
       "lat": 37.43164,
       "lon": 127.12784,
       "target_distance_m": 146.9,
-      "footage_note": "실주소 미촬영 — 실측 검증된 유사 골목 영상을 판정용으로 대체 사용",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "video",
       "calibration_source_cctv_id": "cctv_moran_a54",
       "calibration_observations_available": 0,
       "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
       "measurement_quality": {
-        "flags": [],
-        "pass_blocked": false
+        "flags": [
+          "no_road_detections"
+        ],
+        "pass_blocked": true
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_moran_a54",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "unavailable",
+      "measurement_failure": {
+        "code": "no_road_detections",
+        "message": "도로 영역 안에 판정할 검출이 없습니다",
+        "attempted_at": "2026-09-16T17:14:39.819425+00:00",
+        "attempted_road_region": {
+          "source_cctv_id": "cctv_moran_a54",
+          "media_filename": "cctv_atypical_road_000429.mp4",
+          "frame_size": [
+            1920,
+            1080
+          ],
+          "polygon": [
+            [
+              920,
+              0
+            ],
+            [
+              1120,
+              0
+            ],
+            [
+              1130,
+              180
+            ],
+            [
+              1160,
+              420
+            ],
+            [
+              1220,
+              720
+            ],
+            [
+              1320,
+              1079
+            ],
+            [
+              140,
+              1079
+            ],
+            [
+              340,
+              700
+            ],
+            [
+              550,
+              470
+            ],
+            [
+              710,
+              300
+            ],
+            [
+              820,
+              150
+            ]
+          ],
+          "annotation_source": "manual_visual",
+          "filter_rule": "keep_any_mask_overlap_v1",
+          "version": "369736bc8ad0729e"
+        },
+        "decision_policy": {
+          "mode": "demo_estimated_width",
+          "allow_estimated_wall_width": true
+        }
       }
     }
   },
@@ -936,8 +1117,8 @@
       "pump-8": "UNCERTAIN"
     },
     "confidence": 0.9926264974215021,
-    "measured_at": "2026-09-15T17:19:07.979596+00:00",
-    "method": "yolov11_homography_v5_motion_aware",
+    "measured_at": "2026-09-16T17:14:40.867265+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
     "calibration_error_m": 2.1941404866242826,
     "source_meta": {
       "scenario": "moran-oil-alley",
@@ -946,7 +1127,7 @@
       "lat": 37.43026,
       "lon": 127.129123,
       "target_distance_m": 189.3,
-      "footage_note": "실주소 미촬영 — 실측 검증된 유사 골목 영상을 판정용으로 대체 사용",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "video",
       "calibration_source_cctv_id": "cctv_moran_a49",
       "calibration_observations_available": 0,
@@ -954,7 +1135,15 @@
       "measurement_quality": {
         "flags": [],
         "pass_blocked": false
-      }
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_moran_a49",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
     }
   },
   {
@@ -1031,9 +1220,9 @@
       "pump-8": "UNCERTAIN"
     },
     "confidence": 0.9999999866795348,
-    "measured_at": "2026-09-15T17:19:08.657090+00:00",
-    "method": "yolov11_homography_v5_motion_aware",
-    "calibration_error_m": 2.5421537290984895,
+    "measured_at": "2026-09-16T17:14:41.890661+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 2.5421537209454734,
     "source_meta": {
       "scenario": "moran-oil-alley",
       "source_csv_id": "중원성남-A-1",
@@ -1041,7 +1230,7 @@
       "lat": 37.431987,
       "lon": 127.128116,
       "target_distance_m": 192.5,
-      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭을 시연용으로 배치",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "video",
       "wall_width_source": "naver_map",
       "width_reference_cctv_id": "cctv_4",
@@ -1054,7 +1243,12 @@
           "outside_calibration_depth"
         ],
         "pass_blocked": true
-      }
+      },
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
     }
   },
   {
@@ -1181,8 +1375,8 @@
       "pump-8": "FAIL"
     },
     "confidence": 1.6053041736398083e-07,
-    "measured_at": "2026-09-15T17:19:09.495775+00:00",
-    "method": "yolov11_homography_v5_motion_aware",
+    "measured_at": "2026-09-16T17:14:43.336389+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
     "calibration_error_m": 1.9741951268051583,
     "source_meta": {
       "scenario": "moran-oil-alley",
@@ -1191,7 +1385,7 @@
       "lat": 37.431098,
       "lon": 127.129052,
       "target_distance_m": 193.0,
-      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭을 시연용으로 배치",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "video",
       "wall_width_source": "naver_map",
       "width_reference_cctv_id": "cctv_5",
@@ -1202,7 +1396,12 @@
       "measurement_quality": {
         "flags": [],
         "pass_blocked": false
-      }
+      },
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
     }
   },
   {
@@ -1210,8 +1409,8 @@
     "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000439.mp4",
     "edge_id": "cctv_moran_a5",
     "wall_width_m": 6.08,
-    "obstacle_width_m": 4.151469596827961,
-    "effective_width_m": 1.9285304031720392,
+    "obstacle_width_m": 2.32611891072854,
+    "effective_width_m": 3.7538810892714602,
     "detected_objects": [
       {
         "vehicle_class": "승용차",
@@ -1245,13 +1444,13 @@
       }
     ],
     "verdict": {
-      "pump-3.5": "FAIL",
-      "pump-8": "FAIL"
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
     },
-    "confidence": 0.00105029310412211,
-    "measured_at": "2026-09-15T17:19:10.112842+00:00",
-    "method": "yolov11_homography_v5_motion_aware",
-    "calibration_error_m": 1.780478406638801,
+    "confidence": 0.9999997080179075,
+    "measured_at": "2026-09-16T17:14:44.192484+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 2.1638771678374047,
     "source_meta": {
       "scenario": "moran-oil-alley",
       "source_csv_id": "중원성남-A-5",
@@ -1259,7 +1458,7 @@
       "lat": 37.432279,
       "lon": 127.126874,
       "target_distance_m": 198.1,
-      "footage_note": "실주소 미촬영 — 실측 검증된 유사 골목 영상을 판정용으로 대체 사용",
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
       "adapter": "video",
       "calibration_source_cctv_id": "cctv_moran_a5",
       "calibration_observations_available": 0,
@@ -1267,7 +1466,15 @@
       "measurement_quality": {
         "flags": [],
         "pass_blocked": false
-      }
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_moran_a5",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
     }
   }
 ]
