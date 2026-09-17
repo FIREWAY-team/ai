@@ -49,3 +49,5 @@ ultralytics==8.4.144
 ultralytics-platform==0.1.45
 ultralytics-thop==2.1.6
 urllib3==2.8.0
+
+awscrt==0.36.0
