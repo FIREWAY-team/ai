@@ -76,7 +76,7 @@ def package_runtime(output: Path) -> dict:
                 if path.suffix in {'.py', '.html'} and '__pycache__' not in path.parts:
                     copy(path, path.relative_to(ROOT))
         for name in ('yolo11n-seg.pt', 'goldenlane_vehicle_specs.py', 'requirements.txt',
-                     'configs/road_regions.yaml', 'configs/vehicles.json', 'configs/moran_destination.json',
+                     'configs/road_regions.yaml', 'configs/vehicles.json', 'configs/moran_destination.json', 'configs/moran_demo_scenario.json',
                      'requirements-lock-macos-arm64-py313.txt'):
             copy(ROOT / name, Path(name))
         for camera in config.values():
