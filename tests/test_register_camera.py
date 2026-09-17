@@ -20,6 +20,45 @@ def test_read_manifest_parses_csv(tmp_path):
     assert entries[1] == register_camera.CameraEntry("cam_l2", "/tmp/l2.jpg", 3.05)
 
 
+def test_read_manifest_parses_optional_lat_lon(tmp_path):
+    manifest = tmp_path / "manifest.csv"
+    manifest.write_text(
+        "cctv_id,image_path,wall_width_m,lat,lon\n"
+        "cam_l1,/tmp/l1.jpg,4.2,37.4292,127.132\n"
+        "cam_l2,/tmp/l2.jpg,3.05,,\n",
+        encoding="utf-8",
+    )
+
+    entries = register_camera.read_manifest(str(manifest))
+
+    assert entries[0] == register_camera.CameraEntry("cam_l1", "/tmp/l1.jpg", 4.2, 37.4292, 127.132)
+    assert entries[1] == register_camera.CameraEntry("cam_l2", "/tmp/l2.jpg", 3.05)
+
+
+def test_register_one_stores_lat_lon(monkeypatch, tmp_path):
+    path = tmp_path / "cameras.yaml"
+    media = {"bucket": "bucket", "key": "key"}
+    monkeypatch.setattr(register_camera, "upload_media", lambda *a, **kw: media)
+    register_camera.register_one(
+        register_camera.CameraEntry("cam_l1", "/tmp/a.png", 4.2, 37.4292, 127.132),
+        "bucket", "region", "kakao_map", "low", registry_path=path,
+    )
+    result = camera_registry.get_camera("cam_l1", path)
+    assert result["lat"] == 37.4292
+    assert result["lon"] == 127.132
+
+
+def test_register_one_rejects_half_specified_coordinates(monkeypatch, tmp_path):
+    import pytest
+    path = tmp_path / "cameras.yaml"
+    monkeypatch.setattr(register_camera, "upload_media", lambda *a, **kw: pytest.fail("must not upload"))
+    with pytest.raises(ValueError):
+        register_camera.register_one(
+            register_camera.CameraEntry("cam_l1", "/tmp/a.png", 4.2, lat=37.4292, lon=None),
+            "bucket", "region", "kakao_map", "low", registry_path=path,
+        )
+
+
 def test_register_one_preserves_original_and_calibration(monkeypatch, tmp_path):
     import yaml
     path = tmp_path / "cameras.yaml"

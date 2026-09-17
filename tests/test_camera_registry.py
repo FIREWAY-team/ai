@@ -55,6 +55,42 @@ def test_register_camera_overwrites_existing_entry(tmp_path):
     assert camera["still_url"] == "https://example.com/new.jpg"
 
 
+def test_register_camera_stores_lat_lon_when_given(tmp_path):
+    path = tmp_path / "cameras.yaml"
+    camera_registry.register_camera(
+        "cam_l1", 4.2, "https://example.com/a.jpg", path=path, lat=37.4292, lon=127.132,
+    )
+    camera = camera_registry.get_camera("cam_l1", path=path)
+    assert camera["lat"] == 37.4292
+    assert camera["lon"] == 127.132
+
+
+def test_register_camera_omits_lat_lon_when_not_given(tmp_path):
+    path = tmp_path / "cameras.yaml"
+    camera_registry.register_camera("cam_l1", 4.2, "https://example.com/a.jpg", path=path)
+    camera = camera_registry.get_camera("cam_l1", path=path)
+    assert "lat" not in camera
+    assert "lon" not in camera
+
+
+@pytest.mark.parametrize("lat,lon", [(None, 127.132), (37.4292, None)])
+def test_register_camera_rejects_half_specified_coordinates(tmp_path, lat, lon):
+    path = tmp_path / "cameras.yaml"
+    with pytest.raises(ValueError):
+        camera_registry.register_camera(
+            "cam_l1", 4.2, "https://example.com/a.jpg", path=path, lat=lat, lon=lon,
+        )
+
+
+@pytest.mark.parametrize("lat,lon", [(91.0, 127.0), (-91.0, 127.0), (37.0, 181.0), (37.0, -181.0)])
+def test_register_camera_rejects_out_of_range_coordinates(tmp_path, lat, lon):
+    path = tmp_path / "cameras.yaml"
+    with pytest.raises(ValueError):
+        camera_registry.register_camera(
+            "cam_l1", 4.2, "https://example.com/a.jpg", path=path, lat=lat, lon=lon,
+        )
+
+
 @pytest.mark.parametrize("source", [
     None,
     {"still_url": "other.mp4"},

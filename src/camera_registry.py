@@ -100,18 +100,37 @@ def register_camera(
     wall_width_source: str = "kakao_map",
     slope_risk: str = "low",
     path: Path = DEFAULT_CAMERAS_YAML,
+    lat: float | None = None,
+    lon: float | None = None,
 ) -> None:
     """카메라 하나를 등록/갱신한다 — `scripts/register_camera.py`가 S3 업로드
     직후 이 함수를 호출해 `configs/cameras.yaml`에 반영한다.
+
+    lat/lon — 카메라 실제 설치 위경도(WGS84). 지금까지는 이 값이 정식
+    필드가 아니라 `Reading.source_meta`에만 임시로 끼워넣어져서(모란 12곳
+    등록 스크립트), no_go_areas 같은 실제 공간 데이터와 SQL로 조인할
+    방법이 없었다. 둘 다 없거나 둘 다 있어야 한다 — 한쪽만 있으면 좌표가
+    아니라 임의의 반쪽 데이터가 조용히 저장된다.
     """
+    if (lat is None) != (lon is None):
+        raise ValueError("lat/lon은 둘 다 주거나 둘 다 생략해야 합니다")
+    if lat is not None and not (-90 <= lat <= 90):
+        raise ValueError(f"lat 범위 초과(-90~90): {lat}")
+    if lon is not None and not (-180 <= lon <= 180):
+        raise ValueError(f"lon 범위 초과(-180~180): {lon}")
+
     data = _load_raw(path)
     cameras = data.setdefault("cameras", {})
-    cameras[cctv_id] = {
+    camera = {
         "slope_risk": slope_risk,
         "wall_width_m": wall_width_m,
         "wall_width_source": wall_width_source,
         "still_url": still_url,
     }
+    if lat is not None:
+        camera["lat"] = lat
+        camera["lon"] = lon
+    cameras[cctv_id] = camera
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False)
