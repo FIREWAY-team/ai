@@ -1,0 +1,10 @@
+{
+  "name": "천안기름집",
+  "address": "경기 성남시 중원구 둔촌대로83번길 7",
+  "lat": 37.4309076894368,
+  "lon": 127.128007683821,
+  "radius_m": 200,
+  "coordinate_source": "kakao_address_geocoding",
+  "coordinate_verified_on": "2026-09-18",
+  "coordinate_scope": "address_representative_point"
+}

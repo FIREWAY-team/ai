@@ -251,5 +251,5 @@ runs_finetune/
 # 다운로드본이라 레포에 포함하지 않는다 (필요하면 README 안내로 각자 받는다).
 aihubshell
 
-# 담당자별 S3 연동 요청 문서는 팀 공유 대상으로 추적
-!docs/handoff/*.md
+# 담당자별 설명·인계 문서는 로컬에서만 관리
+docs/handoff/

@@ -19,7 +19,10 @@ def test_real_camera_points_preserve_verdicts_without_fake_road_mapping(readings
     assert len(bundle['features']) == 12
     assert bundle['features'][0]['geometry']['coordinates'] == [127.126909, 37.430393]
     assert not bundle['routing_ready']
-    assert bundle['destination'] is None
+    assert bundle['destination']['name'] == '천안기름집'
+    assert bundle['destination']['lat'] == 37.4309076894368
+    assert bundle['destination']['lon'] == 127.128007683821
+    assert bundle['summary']['nearby_camera_count'] == 12
     for reading, feature in zip(readings, bundle['features']):
         prop = feature['properties']
         assert prop['measurement']['verdict'] == reading['verdict']
@@ -70,3 +73,26 @@ def test_private_media_reference_without_temporary_url(readings):
     assert prop['media']['key'] == 'cctv/uuid.png'
     assert 'X-Amz' not in json.dumps(bundle)
     assert bundle['summary']['registered_media_count'] == 1
+
+
+def test_radius_selection_keeps_outside_camera_without_moving_it(readings):
+    readings[0]['source_meta']['lat'] = 37.44
+    bundle = export_bundle(readings)
+    first = bundle['features'][0]
+    assert first['geometry']['coordinates'] == [127.126909, 37.44]
+    assert not first['properties']['within_destination_radius']
+    assert first['properties']['distance_to_destination_m'] > 200
+    assert len(bundle['features']) == 12
+    assert bundle['summary']['nearby_camera_count'] == 11
+
+
+@pytest.mark.parametrize('field,value', [('lat', float('nan')), ('lon', 181), ('radius_m', 0)])
+def test_invalid_destination_is_rejected(readings, tmp_path, monkeypatch, field, value):
+    import scripts.export_moran_bundle as exporter
+    destination = json.loads(exporter.DESTINATION_PATH.read_text())
+    destination[field] = value
+    path = tmp_path / 'destination.json'
+    path.write_text(json.dumps(destination))
+    monkeypatch.setattr(exporter, 'DESTINATION_PATH', path)
+    with pytest.raises(ValueError):
+        exporter.export_bundle(readings)

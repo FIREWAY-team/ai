@@ -43,8 +43,8 @@ def test_append_accumulates_across_multiple_calls(tmp_path):
 
 
 def test_append_empty_list_creates_no_file(tmp_path):
-    calibration_store.append_observations("cctv_3", [], calibration_dir=tmp_path)
-    assert calibration_store.load_observations("cctv_3", calibration_dir=tmp_path) == []
+    calibration_store.append_observations("cctv_empty_history_test", [], calibration_dir=tmp_path)
+    assert calibration_store.load_observations("cctv_empty_history_test", calibration_dir=tmp_path) == []
     assert not list(tmp_path.rglob("*.jsonl"))
 
 

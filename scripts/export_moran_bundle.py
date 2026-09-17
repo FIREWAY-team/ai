@@ -15,6 +15,7 @@ from src.adapters.s3_adapter import validate_media
 from src.output.atomic_writer import write_text_atomic
 
 ROOT = Path(__file__).resolve().parents[1]
+DESTINATION_PATH = ROOT / "configs/moran_destination.json"
 EXPECTED_IDS = {f"cctv_moran_a{i}" for i in (18, 39, 21, 10, 17, 41, 34, 54, 49, 1, 59, 5)}
 MEASUREMENT_FIELDS = (
     "wall_width_m", "obstacle_width_m", "effective_width_m", "calibration_error_m",
@@ -33,6 +34,14 @@ def export_bundle(readings: list[dict]) -> dict:
     ids = [r["cctv_id"] for r in readings]
     if len(ids) != 12 or set(ids) != EXPECTED_IDS:
         raise ValueError("모란 CCTV 12개의 고유 ID가 모두 필요합니다")
+    destination = json.loads(DESTINATION_PATH.read_text(encoding="utf-8"))
+    for key, limit in (("lat", 90), ("lon", 180)):
+        value = destination[key]
+        if type(value) not in (int, float) or not math.isfinite(value) or abs(value) > limit:
+            raise ValueError(f"잘못된 목적지 {key}")
+    radius = destination["radius_m"]
+    if type(radius) not in (int, float) or not math.isfinite(radius) or radius <= 0:
+        raise ValueError("목적지 반경은 유한한 양수여야 합니다")
     features = []
     counts: dict[str, Counter] = {}
     for reading in readings:
@@ -59,7 +68,13 @@ def export_bundle(readings: list[dict]) -> dict:
             raise ValueError(f"{cctv_id}: 원본 식별자가 필요합니다")
         if media is not None:
             validate_media(media, source, meta["adapter"])
+        a, b = math.radians(destination["lat"]), math.radians(lat)
+        delta_lon = math.radians(lon - destination["lon"])
+        haversine = math.sin((b - a) / 2) ** 2 + math.cos(a) * math.cos(b) * math.sin(delta_lon / 2) ** 2
+        distance = 6371000 * 2 * math.asin(math.sqrt(min(1.0, max(0.0, haversine))))
         properties = {
+            "distance_to_destination_m": distance,
+            "within_destination_radius": distance <= radius,
             "cctv_id": cctv_id, "source_csv_id": meta["source_csv_id"],
             "address": meta.get("address"),
             "edge_id": None, "edge_mapping_status": "unmapped",
@@ -78,9 +93,9 @@ def export_bundle(readings: list[dict]) -> dict:
                          "properties": properties})
     bundle = {
         "type": "FeatureCollection", "schema_version": "fireway-cctv-handoff-v1",
-        "routing_ready": False, "destination": None,
-        "limitations": ["도로 구간 연결 미완료", "화재 목적지 미지정", "타 지역 시연용 원본 영상"],
-        "summary": {"camera_count": 12, "registered_media_count": sum(f["properties"]["media"] is not None for f in features),
+        "routing_ready": False, "destination": destination,
+        "limitations": ["도로 구간 연결 미완료", "목적지 출입구·진입점 미확인", "타 지역 시연용 원본 영상"],
+        "summary": {"camera_count": 12, "nearby_camera_count": sum(f["properties"]["within_destination_radius"] for f in features), "registered_media_count": sum(f["properties"]["media"] is not None for f in features),
                     "verdict_counts": {vehicle: dict(count) for vehicle, count in counts.items()}},
         "features": features,
     }
