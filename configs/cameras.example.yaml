@@ -6,13 +6,25 @@
 #                   되어 AWS 프리티어 배포에 유리하다). 매 프레임 재계산하지
 #                   않는다 — 그 자리 도로 구조는 고정값이므로.
 # wall_width_source — 실측 출처 표기. "kakao_map" | "naver_map" | "field_measurement"(직접 촬영/줄자)
+#                   | "estimated_avg_of_similar_alleys"(실측 원본이 없을 때 유사 골목 평균으로 대체 —
+#                   PASS 판정에는 그대로 반영되지만 unverified_wall_width는 안 뜸, 명시적으로 등록된 값이므로)
+# 추정값·출처 누락·등록 폭과 입력 폭 불일치는 unverified_wall_width로 PASS 차단.
 # slope_risk     — 경사/캠버 스크리닝 결과(스펙 3장). low면 로컬 스케일
 #                   캘리브레이션(2-2장)만으로 충분, high면 추가 검토 필요.
+# calibration_source_cctv_id — 대체 영상 배치 시 원본 ID. 양쪽 still_url 동일해야 함.
+# 예: 모란 항목에 calibration_source_cctv_id: cctv_4 설정 후 원본 관측치 공유.
+# lat/lon        — 카메라 실제 설치 위경도(WGS84). 둘 다 주거나 둘 다 생략해야 한다
+#                   (한쪽만 있으면 register_camera()가 ValueError). no_go_areas 같은
+#                   실제 공간 데이터(geom)와 SQL로 조인하려면 이 값이 있어야 한다 —
+#                   2026-09-17 전까지는 이 좌표가 source_meta에만 임시로 들어가서
+#                   재사용 불가능한 값이었다.
 cameras:
   cam_l1:
     slope_risk: low
     wall_width_m: 4.2
     wall_width_source: kakao_map
+    lat: 37.4283
+    lon: 127.1394
   cam_l2:
     slope_risk: low
     wall_width_m: 3.05

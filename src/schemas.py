@@ -4,6 +4,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
+class MeasurementUnavailableError(ValueError):
+    """설정 오류와 구분되는 관측 근거 부족."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
 @dataclass
 class ReadingCore:
     """Reading의 하위 집합 — 판독 모듈이 책임지는 필드만.
@@ -19,4 +27,5 @@ class ReadingCore:
     verdict: dict[str, str] = field(default_factory=dict)  # {"pump-3.5": "PASS", ...}
     confidence: float = 0.0  # 차종별 판정 확률 중 가장 보수적인(작은) 값
     calibration_error_m: float = 0.0  # 이 프레임 캘리브레이션 추정 오차
-    method: str = "yolov11_homography_v1"
+    method: str = "yolov11_homography_v7"
+    quality_flags: list[str] = field(default_factory=list)

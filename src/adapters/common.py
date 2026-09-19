@@ -38,6 +38,11 @@ def build_reading(
     still_url을 "still_public_url" 키로 내보낸다 — backend `cctv_readings`
     테이블 컬럼명(V3__init_cctv_readings.sql)과 정확히 맞춰야 한다.
     """
+    metadata = dict(source_meta or {})
+    metadata["measurement_quality"] = {
+        "flags": list(reading_core.quality_flags),
+        "pass_blocked": bool(reading_core.quality_flags),
+    }
     return {
         "cctv_id": cctv_id,
         "still_public_url": still_url,
@@ -51,5 +56,5 @@ def build_reading(
         "measured_at": datetime.now(timezone.utc).isoformat(),
         "method": reading_core.method,
         "calibration_error_m": reading_core.calibration_error_m,
-        "source_meta": source_meta or {},
+        "source_meta": metadata,
     }

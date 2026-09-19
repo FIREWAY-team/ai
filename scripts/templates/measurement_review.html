@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FireWay · 실측 구간 표시</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f5f7;color:#172333;font-family:system-ui,-apple-system,sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid #c9d2dc;border-radius:8px;padding:10px 14px;background:white;color:#172333}button:hover{background:#edf3f8}button:focus-visible,input:focus-visible{outline:3px solid #156dcb;outline-offset:2px}header{background:#142536;color:#fff;padding:22px 30px;display:flex;justify-content:space-between;align-items:center;gap:16px}.brand{color:#ffb78a;font-size:12px;font-weight:800;letter-spacing:2px}h1{font-size:24px;margin:7px 0}header p{margin:0;font-size:14px;color:#ccd7e2}.actions{display:flex;gap:8px;flex-wrap:wrap}.primary{background:#f57632;color:#fff;border-color:#f57632;font-weight:700}.primary:hover{background:#d96020}main{max-width:1660px;margin:24px auto;padding:0 24px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:20px}aside,.panel{background:#fff;border:1px solid #dce2e8;border-radius:12px}aside{padding:16px;height:fit-content}aside h2{font-size:14px;margin:2px 0 12px}.camera{display:block;text-align:left;width:100%;margin:7px 0;padding:13px 10px;border-color:transparent}.camera[aria-current=true]{background:#eaf2fa;border-color:#4c86b6}.camera strong,.camera small{display:block}.camera small{margin-top:5px;color:#526376;font-size:12px}.state{font-size:12px;color:#5b6f81}.panel{padding:20px;min-width:0}.heading{display:flex;justify-content:space-between;gap:16px;align-items:start}h2{font-size:21px;margin:0 0 5px}.muted{color:#596a7d;font-size:13px;overflow-wrap:anywhere}.width{text-align:right;white-space:nowrap}.width b{display:block;font-size:26px}.instructions{font-size:14px;line-height:1.6;background:#f2f6fa;padding:12px 14px;border-radius:8px;margin:16px 0}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}.zoom{display:flex;align-items:center;gap:8px;font-size:13px}.viewport{background:#111c29;border-radius:9px;overflow:auto;max-height:65vh;min-height:240px}canvas{display:block;cursor:crosshair;max-width:none}.coordinates{display:flex;gap:16px;flex-wrap:wrap;margin:16px 0}.point{display:flex;align-items:center;gap:7px;font-size:13px}.point strong{margin-right:4px}.point input{width:85px;padding:7px;border:1px solid #bbc7d3;border-radius:6px}.confirm{display:flex;align-items:center;gap:8px;font-size:14px}.confirm input{width:18px;height:18px}.bottom{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid #e0e5eb;padding-top:16px;margin-top:18px}.status{font-size:13px;color:#365977;min-height:22px;margin-top:12px}.error{color:#ab301c}footer{margin:20px 24px;text-align:center;color:#627286;font-size:12px}@media(max-width:850px){header{align-items:start;flex-direction:column;padding:20px}main{display:block;padding:0 12px;margin:12px auto}aside{margin-bottom:12px}.camera{display:inline-block;width:calc(50% - 5px);vertical-align:top}.panel{padding:14px}.width b{font-size:23px}.viewport{max-height:60vh}}
+</style>
+</head>
+<body>
+<header><div><div class="brand">FIREWAY / MEASUREMENT</div><h1>실측 구간 표시</h1><p>건물과 건물 사이를 잰 구간을 원본 영상에 연결하세요.</p></div><div class="actions"><button id="import">초안 불러오기</button><button id="export" class="primary">주석 파일 저장</button><input id="file" type="file" accept=".json,application/json" hidden></div></header>
+<main><aside><h2>원본 5곳 <span id="progress" class="state"></span></h2><nav id="cameras" aria-label="원본 카메라 선택"></nav><p class="muted">표시한 좌표는 검토용 초안으로 저장됩니다.</p></aside>
+<section class="panel"><div class="heading"><div><h2 id="address"></h2><div id="identity" class="muted"></div><div id="filename" class="muted"></div></div><div class="width"><span class="muted">건물 간 전체 폭</span><b id="width"></b></div></div>
+<p class="instructions">실제 측정했던 구간의 <strong>지면 쪽 양 끝점</strong>을 차례로 클릭하세요. 위치가 가려졌거나 확실하지 않으면 ‘위치 확인 불가’를 선택하세요.</p>
+<div class="toolbar"><label class="zoom">확대 <input id="zoom" type="range" min="1" max="3" step="0.25" value="1"><output id="zoom-value">100%</output></label><span id="dimensions" class="muted"></span><button id="reset">다시 표시</button></div>
+<div id="viewport" class="viewport"><canvas id="canvas" aria-label="실측 구간 양 끝점 선택 이미지"></canvas></div>
+<div class="coordinates"><div class="point"><strong>① 시작점</strong><label>X <input id="x0" type="number" step="1" min="0" disabled></label><label>Y <input id="y0" type="number" step="1" min="0" disabled></label></div><div class="point"><strong>② 끝점</strong><label>X <input id="x1" type="number" step="1" min="0" disabled></label><label>Y <input id="y1" type="number" step="1" min="0" disabled></label></div><span id="distance" class="muted"></span></div>
+<label class="confirm"><input type="checkbox" id="confirm" disabled>표시한 선이 실제로 측정한 건물 간 구간과 일치합니다.</label>
+<div id="status" class="status" role="status" aria-live="polite"></div>
+<div class="bottom"><button id="unavailable">위치 확인 불가</button><div class="actions"><button id="previous">이전 원본</button><button id="next">다음 원본 →</button></div></div>
+</section></main><footer>확대 화면에서 선택해도 좌표는 원본 해상도로 저장됩니다. 저장 파일을 전달하면 구간 검토를 이어갈 수 있습니다.</footer>
+<script id="manifest" type="application/json">__MANIFEST_JSON__</script>
+<script>
+'use strict';
+const manifest=JSON.parse(document.getElementById('manifest').textContent);
+const identityFields=['source_cctv_id','moran_cctv_id','media_filename','media_sha256','frame_sha256','frame_size','sample_index','wall_width_m'];
+const $=id=>document.getElementById(id), canvas=$('canvas'), ctx=canvas.getContext('2d');
+let selected=0, image=null, generation=0;
+let entries=manifest.cameras.map(c=>({...Object.fromEntries(identityFields.map(k=>[k,c[k]])),points:[],matches_measured_segment:false,status:'pending'}));
+const key='fireway-measurement-v1:'+manifest.cameras.map(c=>c.frame_sha256+':'+c.wall_width_m).join('|');
+const payload=()=>({schema_version:1,annotations:entries});
+function message(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
+function validate(data){
+ if(data?.schema_version!==1||!Array.isArray(data.annotations)||data.annotations.length!==manifest.cameras.length)throw Error('원본 목록과 맞지 않는 주석 파일입니다.');
+ const seen=new Set();
+ for(const e of data.annotations){
+  const c=manifest.cameras.find(c=>c.source_cctv_id===e?.source_cctv_id);
+  if(!c||seen.has(e.source_cctv_id))throw Error('미등록 또는 중복 원본입니다.');seen.add(e.source_cctv_id);
+  for(const k of identityFields)if(JSON.stringify(e[k])!==JSON.stringify(c[k]))throw Error('원본·프레임·실측 폭이 다릅니다: '+e.source_cctv_id);
+  if(!Array.isArray(e.points)||e.points.length>2||e.points.some(p=>!Array.isArray(p)||p.length!==2||p.some((v,i)=>typeof v!=='number'||!Number.isFinite(v)||v<0||v>=c.frame_size[i])))throw Error('원본 밖이거나 잘못된 픽셀 좌표입니다.');
+  if(e.points.length===2&&Math.hypot(e.points[1][0]-e.points[0][0],e.points[1][1]-e.points[0][1])<1)throw Error('양 끝점은 1px 이상 떨어져 있어야 합니다.');
+  if(typeof e.matches_measured_segment!=='boolean'||!['pending','annotated','unavailable'].includes(e.status))throw Error('주석 상태가 올바르지 않습니다.');
+  if(e.status==='annotated'&&(e.points.length!==2||!e.matches_measured_segment)||e.status!=='annotated'&&e.matches_measured_segment||e.status==='unavailable'&&e.points.length)throw Error('구간 확인 상태와 좌표가 일치하지 않습니다.');
+ }
+ return manifest.cameras.map(c=>data.annotations.find(e=>e.source_cctv_id===c.source_cctv_id));
+}
+function persist(){try{localStorage.setItem(key,JSON.stringify(payload()));}catch{message('브라우저 임시 저장을 사용할 수 없습니다. 주석 파일 저장 버튼으로 보관하세요.',true);}}
+function updateList(){
+ $('cameras').replaceChildren();manifest.cameras.forEach((c,i)=>{const b=document.createElement('button');b.className='camera';b.setAttribute('aria-current',String(i===selected));const strong=document.createElement('strong');strong.textContent=c.address;const small=document.createElement('small');small.textContent=c.source_cctv_id+' · '+c.wall_width_m.toFixed(1)+'m · '+({pending:'미완료',annotated:'구간 표시',unavailable:'확인 불가'})[entries[i].status];b.append(strong,small);b.onclick=()=>select(i);$('cameras').append(b);});
+ $('progress').textContent=entries.filter(e=>e.status==='annotated').length+'/5 표시';
+}
+function fit(){if(!image)return;canvas.style.width=Math.max(1,Math.floor(Math.min($('viewport').clientWidth,canvas.width)*Number($('zoom').value)))+'px';canvas.style.height='auto';$('zoom-value').textContent=Math.round(Number($('zoom').value)*100)+'%';draw();}
+function draw(){
+ if(!image)return;ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0);const points=entries[selected].points;const ratio=canvas.width/Math.max(1,canvas.getBoundingClientRect().width);
+ if(points.length===2){ctx.strokeStyle='#00eddf';ctx.lineWidth=3*ratio;ctx.setLineDash([8*ratio,5*ratio]);ctx.beginPath();ctx.moveTo(...points[0]);ctx.lineTo(...points[1]);ctx.stroke();ctx.setLineDash([]);}
+ points.forEach((p,i)=>{ctx.beginPath();ctx.arc(p[0],p[1],7*ratio,0,Math.PI*2);ctx.fillStyle=i?'#ffae69':'#4ff2df';ctx.fill();ctx.strokeStyle='#122330';ctx.lineWidth=2*ratio;ctx.stroke();ctx.font=`bold ${16*ratio}px sans-serif`;ctx.fillStyle='#fff';ctx.strokeText(String(i+1),p[0]+12*ratio,p[1]-12*ratio);ctx.fillText(String(i+1),p[0]+12*ratio,p[1]-12*ratio);});
+}
+function updateControls(){const e=entries[selected], c=manifest.cameras[selected];for(let i=0;i<2;i++)for(let axis=0;axis<2;axis++){const input=$((axis?'y':'x')+i);input.disabled=!e.points[i];input.max=c.frame_size[axis]-1;input.value=e.points[i]?.[axis]??'';}$('confirm').disabled=e.points.length!==2;$('confirm').checked=e.matches_measured_segment;$('distance').textContent=e.points.length===2?'선 길이 '+Math.hypot(e.points[1][0]-e.points[0][0],e.points[1][1]-e.points[0][1]).toFixed(1)+'px':'';updateList();draw();}
+function select(index){
+ selected=index;const c=manifest.cameras[index],token=++generation;image=null;ctx.clearRect(0,0,canvas.width,canvas.height);$('address').textContent=c.address;$('identity').textContent=c.source_cctv_id+' → '+c.moran_cctv_id;$('filename').textContent=c.media_filename;$('width').textContent=c.wall_width_m.toFixed(1)+' m';$('dimensions').textContent=c.frame_size.join(' × ')+' px · '+(c.sample_index?'영상 마지막 표본':'원본 프레임');$('previous').disabled=index===0;$('next').disabled=index===entries.length-1;$('zoom').value=1;$('viewport').scrollTo(0,0);message('실측 구간의 첫 번째 끝점부터 선택하세요.');updateControls();
+ const img=new Image();img.onload=()=>{if(token!==generation)return;if(img.naturalWidth!==c.frame_size[0]||img.naturalHeight!==c.frame_size[1]){message('프레임 해상도가 다릅니다.',true);return;}image=img;canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;fit();};img.onerror=()=>{if(token===generation)message('원본 프레임을 열지 못했습니다.',true);};img.src=c.image_data;
+}
+canvas.addEventListener('click',event=>{if(!image)return;const e=entries[selected];if(e.points.length===2){message('좌표 입력란에서 조정하거나 ‘다시 표시’를 선택하세요.');return;}const rect=canvas.getBoundingClientRect();const p=[Math.max(0,Math.min(canvas.width-1,Math.round((event.clientX-rect.left)*canvas.width/rect.width))),Math.max(0,Math.min(canvas.height-1,Math.round((event.clientY-rect.top)*canvas.height/rect.height)))];if(e.points.length&&Math.hypot(p[0]-e.points[0][0],p[1]-e.points[0][1])<1){message('다른 끝점을 선택하세요.',true);return;}e.points.push(p);e.status='pending';e.matches_measured_segment=false;updateControls();persist();message(e.points.length===2?'양 끝점을 확인하고 실측 구간 일치 여부를 체크하세요.':'두 번째 끝점을 선택하세요.');});
+for(let i=0;i<2;i++)for(let axis=0;axis<2;axis++)$((axis?'y':'x')+i).addEventListener('change',event=>{const input=event.target,e=entries[selected],v=input.valueAsNumber;if(!input.validity.valid||!Number.isFinite(v)){updateControls();message('원본 이미지 안의 좌표를 입력하세요.',true);return;}const copy=structuredClone(e.points);copy[i][axis]=v;if(copy.length===2&&Math.hypot(copy[1][0]-copy[0][0],copy[1][1]-copy[0][1])<1){updateControls();message('양 끝점이 겹칩니다.',true);return;}e.points=copy;e.matches_measured_segment=false;e.status='pending';updateControls();persist();message('좌표 수정됨. 실측 구간 일치 여부를 다시 확인하세요.');});
+$('confirm').onchange=()=>{const e=entries[selected];e.matches_measured_segment=$('confirm').checked;e.status=e.matches_measured_segment?'annotated':'pending';updateControls();persist();message(e.matches_measured_segment?'구간 표시 완료. 주석 파일로 저장할 수 있습니다.':'구간 확인 대기.');};
+$('reset').onclick=()=>{Object.assign(entries[selected],{points:[],matches_measured_segment:false,status:'pending'});updateControls();persist();message('양 끝점을 다시 선택하세요.');};
+$('unavailable').onclick=()=>{Object.assign(entries[selected],{points:[],matches_measured_segment:false,status:'unavailable'});updateControls();persist();message('위치 확인 불가로 기록했습니다.');};
+$('zoom').oninput=fit;new ResizeObserver(fit).observe($('viewport'));
+$('previous').onclick=()=>select(selected-1);$('next').onclick=()=>select(selected+1);
+$('export').onclick=()=>{try{const data=payload();validate(data);const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='fireway-measurement-points.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message('주석 파일 저장 요청 완료. 다운로드 폴더에서 확인하세요.');}catch(error){message(error.message,true);}};
+$('import').onclick=()=>$('file').click();$('file').onchange=async()=>{const file=$('file').files[0];if(!file)return;try{const next=validate(JSON.parse(await file.text()));entries=next;persist();select(selected);message('초안을 불러왔습니다.');}catch(error){message('불러오기 실패: '+error.message,true);}finally{$('file').value='';}};
+let restoreError='';try{const saved=localStorage.getItem(key);if(saved)entries=validate(JSON.parse(saved));}catch{restoreError='임시 저장 초안을 읽지 못했습니다. 저장한 JSON 파일을 불러오세요.';}
+select(0);if(restoreError)message(restoreError,true);
+</script>
+</body></html>

@@ -1,0 +1,7 @@
+{
+  "scenario_id": "moran-cheonan-shared-pass-v1",
+  "source_cctv_id": "cctv_moran_a41",
+  "reuse_at_cctv_ids": ["cctv_moran_a1", "cctv_moran_a21", "cctv_moran_a17", "cctv_moran_a49"],
+  "expected_verdict_counts": {"PASS": 5, "FAIL": 3, "UNCERTAIN": 4},
+  "placement_basis": "천안기름집 주변 북쪽·서쪽 근접·남쪽·남동쪽 CCTV 좌표 배치. 실제 연결 도로는 미검증."
+}

@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import math
 
+import cv2
+import numpy as np
+import pytest
+
 from goldenlane_vehicle_specs import (
     MIN_MARGIN_M,
     resolve_margin_m,
     resolve_margin_m_from_samples,
 )
+from src.inference import calibration_store
 from src.postprocess.passable_prob import (
     build_reading_core,
     build_reading_verdict,
@@ -19,6 +24,39 @@ from src.postprocess.passable_prob import (
 from tests.helpers import make_detection
 
 VEHICLES_JSON = {"pump-3.5": 2.3, "pump-8": 2.5}
+
+
+def irregular_vehicle():
+    det = make_detection("승용차", .9, 60, 70, 151, 191, shape=(300, 300))
+    mask = np.zeros((300, 300), dtype=np.uint8)
+    contour = np.array([[160, 70], [210, 70], [210, 140], [100, 260], [60, 260], [60, 200]])
+    cv2.fillPoly(mask, [contour], 1)
+    det.mask = mask.astype(bool)
+    return det
+
+
+def test_empty_corner_of_rotated_box_does_not_block_road():
+    det = irregular_vehicle()
+    assert not det.mask[58:63].any()
+    assert obstacle_widths_m([det], .02, target_y_px=60., camera_height_px=300.) == 0.
+
+
+def test_hole_between_mask_rows_does_not_block_road():
+    det = make_detection("승용차", .9, 10, 10, 90, 180)
+    det.mask[90:111] = False
+    assert obstacle_widths_m([det], .02, target_y_px=100., camera_height_px=200.) == 0.
+
+
+def test_bottleneck_candidate_still_intersects_irregular_vehicle_mask():
+    det = irregular_vehicle()
+    _, obstacle, _, _, target = find_narrowest_widths([det], 300., 4.2)
+    assert obstacle == pytest.approx(1.8)
+    assert det.mask[int(round(target))].any()
+
+
+def test_fractional_target_uses_existing_pixel_tolerance():
+    det = make_detection("승용차", .9, 10, 10, 90, 180)
+    assert obstacle_widths_m([det], .02, 190., 200.) == pytest.approx(89 * .02)
 
 
 def test_resolve_margin_m_defaults_to_min():
@@ -87,6 +125,33 @@ def test_verdict_extreme_effective_widths_are_overflow_safe():
         assert 0.0 <= prob <= 1.0
 
 
+def test_verdict_high_calibration_error_downgrades_marginal_pass_to_uncertain():
+    # 좁은 골목을 비스듬히 찍은 카메라는 기준 차량들의 스케일 추정치가 서로
+    # 크게 어긋날 수 있다(2026-09-13 실측 검증에서 확인 — 같은 프레임 안에서
+    # 기준 차량 스케일이 최대 2배 차이). 그런 프레임에서는 effective_width_m이
+    # margin_m 기준으로 PASS처럼 보여도, 그 자체가 불확실한 값이므로 confident
+    # PASS를 내면 안 된다.
+    need = VEHICLES_JSON["pump-3.5"]
+    margin_m = 0.25
+    effective_m = need + margin_m  # calibration_error_m=0이면 z==1, PASS
+    status_confident, _ = verdict(effective_m, need, margin_m, calibration_error_m=0.0)
+    assert status_confident == "PASS"
+
+    status_uncertain, _ = verdict(effective_m, need, margin_m, calibration_error_m=1.0)
+    assert status_uncertain == "UNCERTAIN"
+
+
+def test_verdict_high_calibration_error_does_not_soften_fail():
+    # 오류 비대칭성(스펙 4장): FAIL을 PASS로 오판하는 쪽이 훨씬 위험하므로,
+    # 캘리브레이션이 불확실하다고 해서 이미 확정된 FAIL 판정을 UNCERTAIN으로
+    # 완화하지 않는다 — PASS 쪽만 더 보수적으로 넓어진다.
+    need = VEHICLES_JSON["pump-3.5"]
+    margin_m = 0.25
+    effective_m = need - margin_m  # calibration_error_m=0이면 z==-1, FAIL
+    status, _ = verdict(effective_m, need, margin_m, calibration_error_m=5.0)
+    assert status == "FAIL"
+
+
 def test_build_reading_verdict_judges_all_vehicle_types_at_once():
     # 잔여폭 2.6m: pump-3.5(2.3m, margin 0.25)는 z=1.2로 PASS, pump-8(2.5m)은 z=0.4로 UNCERTAIN
     effective_m, margin_m = 2.6, 0.25
@@ -126,6 +191,30 @@ def test_obstacle_widths_m_excludes_detections_at_a_different_depth():
         [same_depth], scale_m_per_px=0.02, target_y_px=190.0, camera_height_px=400.0
     )
     assert math.isclose(total_both, total_same_only)
+
+
+def test_obstacle_widths_m_same_lane_overlap_takes_max_not_sum():
+    # 2026-09-15, cctv_4 실측 검증 중 발견: 같은 차선에 앞뒤로 거의 붙어
+    # 주차된 두 차량은 원근 압축 때문에 vehicle_y_span이 경계에서 몇 px
+    # 겹칠 수 있다 — 이때 가로 위치(vehicle_x_span)까지 겹치면(같은 차선)
+    # 나란히 서서 폭을 나눠 막는 게 아니므로 더하지 않고 더 넓은 차 1대분만
+    # 반영해야 한다. (가로 위치가 안 겹치는 다른 차선 케이스는
+    # test_obstacle_widths_m_sums_pixel_widths_scaled가 이미 검증한다.)
+    near_car = make_detection("승용차", 0.9, x=10, y=10, w=90, h=180, shape=(400, 300))  # y:10~189, x:10~99
+    far_car = make_detection("승용차", 0.9, x=30, y=185, w=90, h=60, shape=(400, 300))  # y:185~244, x:30~119(겹침)
+
+    total = obstacle_widths_m(
+        [near_car, far_car], scale_m_per_px=0.02, target_y_px=187.0, camera_height_px=400.0
+    )
+    near_only = obstacle_widths_m(
+        [near_car], scale_m_per_px=0.02, target_y_px=187.0, camera_height_px=400.0
+    )
+    far_only = obstacle_widths_m(
+        [far_car], scale_m_per_px=0.02, target_y_px=187.0, camera_height_px=400.0
+    )
+    # 더 넓은 차(near_car) 1대분과 같아야 하고, 두 폭을 더한 값보다는 작아야 한다.
+    assert math.isclose(total, near_only, rel_tol=1e-6)
+    assert total < near_only + far_only
 
 
 def test_obstacle_widths_m_excludes_people():
@@ -177,6 +266,51 @@ def test_compute_widths_raises_without_reference_vehicle():
         pass
     else:
         raise AssertionError("기준 차량이 없으면 에러여야 합니다")
+
+
+def test_compute_widths_without_cctv_id_never_touches_calibration_store(monkeypatch):
+    # cctv_id를 안 주면(기존 호출부, 하위호환) calibration_store는 아예 조회되지
+    # 않아야 한다 — 조회하면 즉시 실패하게 만들어서 검증한다.
+    def _boom(*args, **kwargs):
+        raise AssertionError("cctv_id 없이 호출했는데 calibration_store가 조회됨")
+
+    monkeypatch.setattr(calibration_store, "load_observations", _boom)
+
+    detections = [make_detection("승용차", 0.9, x=10, y=10, w=90, h=180)]
+    compute_widths(detections, target_y_px=190.0, camera_height_px=200.0, wall_width_m=4.2)
+
+
+def test_compute_widths_uses_accumulated_observations_when_current_frame_lacks_references(
+    monkeypatch,
+):
+    # 정확도개선방안 A-4 확장(2026-09-15): 현재 프레임에 기준 차량이 하나도
+    # 없어도, cctv_id로 누적된 과거 관측치가 있으면 그걸로 스케일을 계산할 수
+    # 있어야 한다. 장애물(사람)만 있고 기준 차량은 없는 프레임으로 검증.
+    person = make_detection("보행자", 0.9, x=10, y=10, w=90, h=180)  # 기준자 후보 아님
+
+    monkeypatch.setattr(
+        calibration_store,
+        "load_observations",
+        lambda cctv_id, **kwargs: [
+            calibration_store.make_observation(0.02, 0.9, 190.0, 200.0),
+            calibration_store.make_observation(0.021, 0.85, 185.0, 200.0),
+        ],
+    )
+
+    # cctv_id 없이는(현재 프레임에 기준 차량이 없으므로) 에러가 나야 한다
+    try:
+        compute_widths([person], target_y_px=190.0, camera_height_px=200.0, wall_width_m=4.2)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("기준 차량이 없으면 cctv_id 없이는 에러여야 합니다")
+
+    # cctv_id를 주면 누적 관측치로 계산에 성공해야 한다
+    wall_m, obstacle_m, effective_m, calib_err_m = compute_widths(
+        [person], target_y_px=190.0, camera_height_px=200.0, wall_width_m=4.2, cctv_id="cctv_x"
+    )
+    assert wall_m == 4.2
+    assert effective_m <= wall_m
 
 
 def test_find_narrowest_widths_picks_the_smallest_effective_width():
@@ -239,4 +373,4 @@ def test_build_reading_core_shape():
     assert set(reading.verdict.keys()) == set(VEHICLES_JSON.keys())
     assert all(status in {"PASS", "UNCERTAIN", "FAIL"} for status in reading.verdict.values())
     assert len(reading.detected_objects) == 1
-    assert reading.method == "yolov11_homography_v1"
+    assert reading.method == "yolov11_homography_v7"

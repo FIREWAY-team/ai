@@ -9,7 +9,7 @@ from typing import Any
 import cv2
 
 from src import camera_registry
-from src.adapters.common import build_reading, default_target_y_px
+from src.adapters.common import build_reading
 from src.pipeline import process_frame
 from src.schemas import ReadingCore
 
@@ -35,17 +35,18 @@ def read_from_file(
     """파일 한 장 → Reading(dict). 판독 로직은 src.pipeline.process_frame에 위임한다.
 
     wall_width_m을 직접 안 주면 `configs/cameras.yaml`에서 cctv_id로 조회한다
-    (카메라 등록 시 지도 실측으로 확정한 값 — src.camera_registry). target_y_px/
-    camera_height_px도 안 주면 이미지 크기에서 근사치를 잡는다(정확도가
-    중요하면 명시적으로 넘길 것 — src.adapters.common.default_target_y_px).
+    (카메라 등록 시 지도 실측으로 확정한 값 — src.camera_registry). target_y_px를
+    안 주면(기본) process_frame이 화면 전체에서 병목 지점을 자동으로 찾는다
+    (find_narrowest_widths) — 화면의 한 지점만 보면 다른 깊이에 있는 진짜
+    장애물을 놓칠 수 있어서(2026-09-15 실측 검증 중 발견), 특정 지점을 강제로
+    보고 싶을 때만 명시적으로 넘긴다. camera_height_px도 안 주면 이미지
+    크기에서 잡는다.
     """
     if wall_width_m is None:
         wall_width_m = camera_registry.get_camera(cctv_id)["wall_width_m"]
     frame = load_frame(path)
     if camera_height_px is None:
         camera_height_px = frame.shape[0]
-    if target_y_px is None:
-        target_y_px = default_target_y_px(frame)
     reading_core: ReadingCore = process_frame(
         frame,
         wall_width_m,
@@ -53,6 +54,7 @@ def read_from_file(
         camera_height_px,
         vehicles_json=vehicles_json,
         margin_m=margin_m,
+        cctv_id=cctv_id,
     )
     return build_reading(
         cctv_id=cctv_id,

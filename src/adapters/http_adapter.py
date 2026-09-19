@@ -5,27 +5,40 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlsplit
 
 import cv2
 import numpy as np
 import requests
 
 from src import camera_registry
-from src.adapters.common import build_reading, default_target_y_px
+from src.adapters.common import build_reading
 from src.pipeline import process_frame
 from src.schemas import ReadingCore
 
 REQUEST_TIMEOUT_SEC = 10
+MAX_IMAGE_BYTES = 16 * 1024 * 1024
 
 
 def fetch_frame(still_url: str, timeout_sec: int = REQUEST_TIMEOUT_SEC):
     """HTTP(S) still_url → BGR np.ndarray 프레임."""
-    response = requests.get(still_url, timeout=timeout_sec)
-    response.raise_for_status()
-    buffer = np.frombuffer(response.content, dtype=np.uint8)
-    frame = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+    url = urlsplit(still_url)
+    if url.scheme not in {"http", "https"} or not url.hostname or url.username is not None or url.password is not None:
+        raise ValueError("인증 정보 없는 HTTP(S) 이미지 주소가 필요합니다")
+    payload = bytearray()
+    try:
+        with requests.get(still_url, timeout=timeout_sec, stream=True, allow_redirects=False) as response:
+            if response.status_code != 200:
+                raise ValueError(f"이미지 조회 실패 (HTTP {response.status_code})")
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                if len(payload) + len(chunk) > MAX_IMAGE_BYTES:
+                    raise ValueError("이미지가 16MiB 제한을 초과했습니다")
+                payload.extend(chunk)
+    except requests.RequestException:
+        raise ValueError("이미지 전송 실패 또는 시간 초과") from None
+    frame = cv2.imdecode(np.frombuffer(payload, dtype=np.uint8), cv2.IMREAD_COLOR) if payload else None
     if frame is None:
-        raise ValueError(f"이미지를 디코딩할 수 없습니다: {still_url}")
+        raise ValueError("이미지를 디코딩할 수 없습니다")
     return frame
 
 
@@ -41,14 +54,14 @@ def read_from_http(
 ) -> dict[str, Any]:
     """HTTP still_url 한 장 → Reading(dict). wall_width_m을 직접 안 주면
     `configs/cameras.yaml`에서 cctv_id로 조회한다(src.camera_registry).
-    target_y_px/camera_height_px도 안 주면 이미지 크기에서 근사치를 잡는다."""
+    target_y_px를 안 주면(기본) process_frame이 병목 지점을 자동으로 찾는다
+    (find_narrowest_widths — file_adapter.read_from_file 참고). camera_height_px도
+    안 주면 이미지 크기에서 잡는다."""
     if wall_width_m is None:
         wall_width_m = camera_registry.get_camera(cctv_id)["wall_width_m"]
     frame = fetch_frame(still_url)
     if camera_height_px is None:
         camera_height_px = frame.shape[0]
-    if target_y_px is None:
-        target_y_px = default_target_y_px(frame)
     reading_core: ReadingCore = process_frame(
         frame,
         wall_width_m,
@@ -56,6 +69,7 @@ def read_from_http(
         camera_height_px,
         vehicles_json=vehicles_json,
         margin_m=margin_m,
+        cctv_id=cctv_id,
     )
     return build_reading(
         cctv_id=cctv_id,

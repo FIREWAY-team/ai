@@ -1,0 +1,1480 @@
+[
+  {
+    "cctv_id": "cctv_moran_a18",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/SS_A_021(F1)_2020_11_30_16-002582.png",
+    "edge_id": "cctv_moran_a18",
+    "wall_width_m": 5.6,
+    "obstacle_width_m": 7.512740128135888,
+    "effective_width_m": -1.912740128135888,
+    "detected_objects": [
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8615456223487854,
+        "bbox": [
+          218.34054565429688,
+          316.23004150390625,
+          394.10028076171875,
+          504.4301452636719
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.826071560382843,
+        "bbox": [
+          393.9850158691406,
+          213.4398651123047,
+          489.5237731933594,
+          299.7239074707031
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8240799903869629,
+        "bbox": [
+          584.4027709960938,
+          282.8814392089844,
+          879.6097412109375,
+          445.60711669921875
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8240621089935303,
+        "bbox": [
+          321.9405517578125,
+          261.2377624511719,
+          438.18670654296875,
+          373.46209716796875
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.7301714420318604,
+        "bbox": [
+          901.2020874023438,
+          311.7262878417969,
+          1077.329345703125,
+          460.7093200683594
+        ]
+      },
+      {
+        "vehicle_class": "대형버스",
+        "confidence": 0.6810346245765686,
+        "bbox": [
+          1.6466445922851562,
+          451.5405578613281,
+          327.0630798339844,
+          914.5469970703125
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.6257704496383667,
+        "bbox": [
+          437.2678527832031,
+          176.2843017578125,
+          517.3565063476562,
+          239.34934997558594
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.32051482796669006,
+        "bbox": [
+          469.9177551269531,
+          124.80992889404297,
+          552.868896484375,
+          184.50711059570312
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.2542465329170227,
+        "bbox": [
+          460.4309997558594,
+          148.5498809814453,
+          529.508544921875,
+          199.62826538085938
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "FAIL",
+      "pump-8": "FAIL"
+    },
+    "confidence": 1.006597267962733e-23,
+    "measured_at": "2026-09-16T17:14:33.405521+00:00",
+    "method": "yolov11_homography_v7",
+    "calibration_error_m": 2.2249850611631454,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-18",
+      "address": "성남동 4449번지",
+      "lat": 37.430393,
+      "lon": 127.126909,
+      "target_distance_m": 14.4,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "file",
+      "wall_width_source": "naver_map",
+      "width_reference_cctv_id": "cctv_2",
+      "wall_width_scope": "source_footage",
+      "calibration_source_cctv_id": "cctv_2",
+      "calibration_observations_available": 3,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [
+          "negative_effective_width",
+          "outside_calibration_depth"
+        ],
+        "pass_blocked": true
+      },
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed",
+      "road_region": {
+        "source_cctv_id": "cctv_2",
+        "media_filename": "SS_A_021(F1)_2020_11_30_16-002582.png",
+        "frame_size": [
+          1920,
+          1080
+        ],
+        "polygon": [
+          [
+            560,
+            60
+          ],
+          [
+            680,
+            60
+          ],
+          [
+            710,
+            250
+          ],
+          [
+            900,
+            470
+          ],
+          [
+            950,
+            1079
+          ],
+          [
+            0,
+            1079
+          ],
+          [
+            0,
+            650
+          ],
+          [
+            200,
+            350
+          ],
+          [
+            430,
+            180
+          ]
+        ],
+        "annotation_source": "manual_visual",
+        "filter_rule": "keep_any_mask_overlap_v1",
+        "version": "4f37c1cf874c609d"
+      }
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a39",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000481_00001.png",
+    "edge_id": "cctv_moran_a39",
+    "wall_width_m": 7.6,
+    "obstacle_width_m": 3.7913279165848914,
+    "effective_width_m": 3.808672083415108,
+    "detected_objects": [
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.9184327125549316,
+        "bbox": [
+          289.2588195800781,
+          581.6995849609375,
+          647.6914672851562,
+          976.821044921875
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8771601319313049,
+        "bbox": [
+          1364.4454345703125,
+          540.20751953125,
+          1772.82275390625,
+          761.5062255859375
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8274228572845459,
+        "bbox": [
+          1028.6187744140625,
+          440.0069274902344,
+          1194.3885498046875,
+          602.6803588867188
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.7933986783027649,
+        "bbox": [
+          1431.4586181640625,
+          368.18536376953125,
+          1713.2615966796875,
+          525.9197387695312
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.6361343264579773,
+        "bbox": [
+          1515.4735107421875,
+          408.8769836425781,
+          1712.8751220703125,
+          520.2693481445312
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.5498172640800476,
+        "bbox": [
+          1397.6568603515625,
+          473.63067626953125,
+          1600.2060546875,
+          560.9747314453125
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.5360254645347595,
+        "bbox": [
+          1388.533203125,
+          463.8243713378906,
+          1670.4049072265625,
+          602.5419311523438
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
+    },
+    "confidence": 0.9999998487096733,
+    "measured_at": "2026-09-16T17:14:33.916361+00:00",
+    "method": "yolov11_homography_v7",
+    "calibration_error_m": 2.93789319565983,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-39",
+      "address": "성남동 1680번지",
+      "lat": 37.42997,
+      "lon": 127.12687,
+      "target_distance_m": 60.0,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "file",
+      "wall_width_source": "naver_map",
+      "width_reference_cctv_id": "cctv_3",
+      "wall_width_scope": "source_footage",
+      "calibration_source_cctv_id": "cctv_3",
+      "calibration_observations_available": 2,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [],
+        "pass_blocked": false
+      },
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed",
+      "road_region": {
+        "source_cctv_id": "cctv_3",
+        "media_filename": "cctv_atypical_road_000481_00001.png",
+        "frame_size": [
+          1920,
+          1080
+        ],
+        "polygon": [
+          [
+            970,
+            145
+          ],
+          [
+            1030,
+            145
+          ],
+          [
+            1070,
+            260
+          ],
+          [
+            1100,
+            350
+          ],
+          [
+            1190,
+            530
+          ],
+          [
+            1280,
+            740
+          ],
+          [
+            1380,
+            1079
+          ],
+          [
+            0,
+            1079
+          ],
+          [
+            0,
+            835
+          ],
+          [
+            640,
+            470
+          ],
+          [
+            830,
+            300
+          ],
+          [
+            920,
+            200
+          ]
+        ],
+        "annotation_source": "manual_visual",
+        "filter_rule": "keep_any_mask_overlap_v1",
+        "version": "b7e0f373dfa7fe5f"
+      }
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a21",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000420.mp4",
+    "edge_id": "cctv_moran_a21",
+    "wall_width_m": 6.08,
+    "obstacle_width_m": 2.7391555303048256,
+    "effective_width_m": 3.3408444696951745,
+    "detected_objects": [
+      {
+        "vehicle_class": "대형버스",
+        "confidence": 0.9283815622329712,
+        "bbox": [
+          897.6182861328125,
+          186.79205322265625,
+          1278.7723388671875,
+          719.5015869140625
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8761146664619446,
+        "bbox": [
+          473.3269958496094,
+          224.3284912109375,
+          582.5125732421875,
+          335.647705078125
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.7642984390258789,
+        "bbox": [
+          502.69140625,
+          175.72113037109375,
+          584.4189453125,
+          247.65814208984375
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.7389370203018188,
+        "bbox": [
+          398.0408935546875,
+          355.21063232421875,
+          593.0789794921875,
+          588.5044555664062
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.6780545115470886,
+        "bbox": [
+          525.6995849609375,
+          129.51414489746094,
+          578.8787841796875,
+          176.30030822753906
+        ]
+      },
+      {
+        "vehicle_class": "보행자",
+        "confidence": 0.2640293836593628,
+        "bbox": [
+          672.9036865234375,
+          196.221435546875,
+          696.8563232421875,
+          272.4874267578125
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
+    },
+    "confidence": 0.9999585148539932,
+    "measured_at": "2026-09-16T17:14:35.229856+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 3.146719147039675,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-21",
+      "address": "성남동 4226번지",
+      "lat": 37.430907,
+      "lon": 127.127691,
+      "target_distance_m": 76.0,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "video",
+      "calibration_source_cctv_id": "cctv_8",
+      "calibration_observations_available": 41,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [],
+        "pass_blocked": false
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_8",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed",
+      "road_region": {
+        "source_cctv_id": "cctv_8",
+        "media_filename": "cctv_atypical_road_000420.mp4",
+        "frame_size": [
+          1280,
+          720
+        ],
+        "polygon": [
+          [
+            550,
+            30
+          ],
+          [
+            630,
+            30
+          ],
+          [
+            665,
+            170
+          ],
+          [
+            740,
+            350
+          ],
+          [
+            900,
+            719
+          ],
+          [
+            260,
+            719
+          ],
+          [
+            380,
+            520
+          ],
+          [
+            455,
+            300
+          ],
+          [
+            505,
+            130
+          ]
+        ],
+        "annotation_source": "manual_visual",
+        "filter_rule": "keep_any_mask_overlap_v1",
+        "version": "0b0dabf79efad74d"
+      }
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a10",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000421.mp4",
+    "edge_id": "cctv_moran_a10",
+    "wall_width_m": 6.08,
+    "obstacle_width_m": 5.518896323142055,
+    "effective_width_m": 0.5611036768579449,
+    "detected_objects": [
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.7449071407318115,
+        "bbox": [
+          452.10638427734375,
+          274.1554260253906,
+          579.1288452148438,
+          408.7557067871094
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.7280218005180359,
+        "bbox": [
+          690.7384033203125,
+          392.65350341796875,
+          1204.0506591796875,
+          719.8330688476562
+        ]
+      },
+      {
+        "vehicle_class": "트럭",
+        "confidence": 0.7125745415687561,
+        "bbox": [
+          453.1088562011719,
+          273.95916748046875,
+          579.295654296875,
+          409.15301513671875
+        ]
+      },
+      {
+        "vehicle_class": "트럭",
+        "confidence": 0.6642481088638306,
+        "bbox": [
+          770.835205078125,
+          168.85833740234375,
+          1044.00048828125,
+          426.11090087890625
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.5511851906776428,
+        "bbox": [
+          745.98876953125,
+          394.0555419921875,
+          1019.3612060546875,
+          507.373291015625
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.38783547282218933,
+        "bbox": [
+          523.4522705078125,
+          123.14401245117188,
+          565.2308349609375,
+          155.0391845703125
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "FAIL",
+      "pump-8": "FAIL"
+    },
+    "confidence": 7.859163258802725e-11,
+    "measured_at": "2026-09-16T17:14:36.324478+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 3.3424982877819476,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-10",
+      "address": "성남동 4253-1번지",
+      "lat": 37.431354,
+      "lon": 127.126925,
+      "target_distance_m": 95.2,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "video",
+      "calibration_source_cctv_id": "cctv_moran_a10",
+      "calibration_observations_available": 0,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [],
+        "pass_blocked": false
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_moran_a10",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a17",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000422.mp4",
+    "edge_id": "cctv_moran_a17",
+    "wall_width_m": 28.0,
+    "obstacle_width_m": 5.6369506679972,
+    "effective_width_m": 22.3630493320028,
+    "detected_objects": [
+      {
+        "vehicle_class": "트럭",
+        "confidence": 0.9592641592025757,
+        "bbox": [
+          950.6742553710938,
+          587.2565307617188,
+          1624.33056640625,
+          1080.0
+        ]
+      },
+      {
+        "vehicle_class": "대형버스",
+        "confidence": 0.5784412622451782,
+        "bbox": [
+          4.04241943359375,
+          431.9451904296875,
+          490.77978515625,
+          1080.0
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.5394701957702637,
+        "bbox": [
+          474.6551513671875,
+          331.9421081542969,
+          583.6049194335938,
+          422.0716552734375
+        ]
+      },
+      {
+        "vehicle_class": "트럭",
+        "confidence": 0.497173935174942,
+        "bbox": [
+          13.579605102539062,
+          469.1700439453125,
+          493.2898254394531,
+          1080.0
+        ]
+      },
+      {
+        "vehicle_class": "오토바이(자전거)",
+        "confidence": 0.39778539538383484,
+        "bbox": [
+          850.6427001953125,
+          353.4588317871094,
+          882.515869140625,
+          443.65869140625
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.2815214693546295,
+        "bbox": [
+          676.5242309570312,
+          297.9765930175781,
+          731.0037231445312,
+          342.8961181640625
+        ]
+      },
+      {
+        "vehicle_class": "보행자",
+        "confidence": 0.2526760399341583,
+        "bbox": [
+          849.440185546875,
+          353.9336242675781,
+          881.5096435546875,
+          444.9242248535156
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
+    },
+    "confidence": 1.0,
+    "measured_at": "2026-09-16T17:14:37.349003+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 20.767770227086693,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-17",
+      "address": "성남동 4177번지",
+      "lat": 37.430464,
+      "lon": 127.128253,
+      "target_distance_m": 110.7,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "video",
+      "wall_width_source": "naver_map",
+      "width_reference_cctv_id": "cctv_7",
+      "wall_width_scope": "source_footage",
+      "calibration_source_cctv_id": "cctv_7",
+      "calibration_observations_available": 19,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [],
+        "pass_blocked": false
+      },
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a41",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000423.mp4",
+    "edge_id": "cctv_moran_a41",
+    "wall_width_m": 6.08,
+    "obstacle_width_m": 1.8814472666679756,
+    "effective_width_m": 4.198552733332025,
+    "detected_objects": [
+      {
+        "vehicle_class": "보행자",
+        "confidence": 0.7861125469207764,
+        "bbox": [
+          956.5012817382812,
+          290.31591796875,
+          981.3247680664062,
+          355.34320068359375
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.7451390027999878,
+        "bbox": [
+          922.0303955078125,
+          232.89349365234375,
+          975.1817626953125,
+          283.1300048828125
+        ]
+      },
+      {
+        "vehicle_class": "보행자",
+        "confidence": 0.4748477041721344,
+        "bbox": [
+          1048.8209228515625,
+          447.84942626953125,
+          1101.9871826171875,
+          557.9288940429688
+        ]
+      },
+      {
+        "vehicle_class": "트럭",
+        "confidence": 0.31969475746154785,
+        "bbox": [
+          0.0,
+          424.6217956542969,
+          94.96151733398438,
+          611.226806640625
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "PASS",
+      "pump-8": "PASS"
+    },
+    "confidence": 0.9999999985941628,
+    "measured_at": "2026-09-16T17:14:38.167447+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 0.22179896590660536,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-41",
+      "address": "성남동 4168번지",
+      "lat": 37.4314,
+      "lon": 127.12819,
+      "target_distance_m": 145.1,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "video",
+      "calibration_source_cctv_id": "cctv_9",
+      "calibration_observations_available": 11,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [],
+        "pass_blocked": false
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_9",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a34",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000426.mp4",
+    "edge_id": "cctv_moran_a34",
+    "wall_width_m": 6.08,
+    "obstacle_width_m": 2.3019318623095435,
+    "effective_width_m": 3.7780681376904566,
+    "detected_objects": [
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.880751371383667,
+        "bbox": [
+          489.6171569824219,
+          297.61669921875,
+          610.052001953125,
+          430.9530029296875
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.7789910435676575,
+        "bbox": [
+          591.873046875,
+          193.77232360839844,
+          670.5435791015625,
+          258.4479675292969
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.36758676171302795,
+        "bbox": [
+          708.7006225585938,
+          230.93885803222656,
+          834.5900268554688,
+          321.5472106933594
+        ]
+      },
+      {
+        "vehicle_class": "트럭",
+        "confidence": 0.2948513925075531,
+        "bbox": [
+          984.0618896484375,
+          543.13720703125,
+          1489.2022705078125,
+          971.0418701171875
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
+    },
+    "confidence": 0.999999781573851,
+    "measured_at": "2026-09-16T17:14:39.110456+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 1.9384167212928831,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-34",
+      "address": "성남동 4423번지",
+      "lat": 37.43159,
+      "lon": 127.12609,
+      "target_distance_m": 145.4,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "video",
+      "calibration_source_cctv_id": "cctv_moran_a34",
+      "calibration_observations_available": 0,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [],
+        "pass_blocked": false
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_moran_a34",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a54",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000429.mp4",
+    "edge_id": "cctv_moran_a54",
+    "wall_width_m": 6.08,
+    "obstacle_width_m": 1.8,
+    "effective_width_m": 4.28,
+    "detected_objects": [
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8459635376930237,
+        "bbox": [
+          1197.2015380859375,
+          171.9620361328125,
+          1698.2449951171875,
+          430.5456848144531
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.46561864018440247,
+        "bbox": [
+          1645.5447998046875,
+          117.44265747070312,
+          1828.637451171875,
+          222.3775177001953
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.33080804347991943,
+        "bbox": [
+          1810.0733642578125,
+          185.0435028076172,
+          1919.6982421875,
+          297.3511047363281
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.27377650141716003,
+        "bbox": [
+          1772.93017578125,
+          179.74273681640625,
+          1919.8265380859375,
+          299.8931579589844
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.27242138981819153,
+        "bbox": [
+          1201.3319091796875,
+          131.24729919433594,
+          1470.394287109375,
+          266.35797119140625
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
+    },
+    "confidence": 0.0,
+    "measured_at": "2026-09-16T13:38:54.302941+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 0.0,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-54",
+      "address": "성남동 4265-1",
+      "lat": 37.43164,
+      "lon": 127.12784,
+      "target_distance_m": 146.9,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "video",
+      "calibration_source_cctv_id": "cctv_moran_a54",
+      "calibration_observations_available": 0,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [
+          "no_road_detections"
+        ],
+        "pass_blocked": true
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_moran_a54",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "unavailable",
+      "measurement_failure": {
+        "code": "no_road_detections",
+        "message": "도로 영역 안에 판정할 검출이 없습니다",
+        "attempted_at": "2026-09-16T17:14:39.819425+00:00",
+        "attempted_road_region": {
+          "source_cctv_id": "cctv_moran_a54",
+          "media_filename": "cctv_atypical_road_000429.mp4",
+          "frame_size": [
+            1920,
+            1080
+          ],
+          "polygon": [
+            [
+              920,
+              0
+            ],
+            [
+              1120,
+              0
+            ],
+            [
+              1130,
+              180
+            ],
+            [
+              1160,
+              420
+            ],
+            [
+              1220,
+              720
+            ],
+            [
+              1320,
+              1079
+            ],
+            [
+              140,
+              1079
+            ],
+            [
+              340,
+              700
+            ],
+            [
+              550,
+              470
+            ],
+            [
+              710,
+              300
+            ],
+            [
+              820,
+              150
+            ]
+          ],
+          "annotation_source": "manual_visual",
+          "filter_rule": "keep_any_mask_overlap_v1",
+          "version": "369736bc8ad0729e"
+        },
+        "decision_policy": {
+          "mode": "demo_estimated_width",
+          "allow_estimated_wall_width": true
+        }
+      }
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a49",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000433.mp4",
+    "edge_id": "cctv_moran_a49",
+    "wall_width_m": 6.08,
+    "obstacle_width_m": 3.1714615319704578,
+    "effective_width_m": 2.9085384680295423,
+    "detected_objects": [
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8355715870857239,
+        "bbox": [
+          502.5231628417969,
+          123.29339599609375,
+          571.139404296875,
+          182.76315307617188
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8088685274124146,
+        "bbox": [
+          431.4300537109375,
+          191.75938415527344,
+          546.3152465820312,
+          325.5831298828125
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.7938554883003235,
+        "bbox": [
+          137.294677734375,
+          546.6676025390625,
+          609.4832763671875,
+          719.05126953125
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.6520411372184753,
+        "bbox": [
+          423.20989990234375,
+          89.06539916992188,
+          476.80364990234375,
+          129.5928955078125
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.4907558858394623,
+        "bbox": [
+          423.88421630859375,
+          121.92131042480469,
+          482.18731689453125,
+          177.4530792236328
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
+    },
+    "confidence": 0.9926264974215021,
+    "measured_at": "2026-09-16T17:14:40.867265+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 2.1941404866242826,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-49",
+      "address": "성남동 4182(임대)",
+      "lat": 37.43026,
+      "lon": 127.129123,
+      "target_distance_m": 189.3,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "video",
+      "calibration_source_cctv_id": "cctv_moran_a49",
+      "calibration_observations_available": 0,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [],
+        "pass_blocked": false
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_moran_a49",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a1",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000434.mp4",
+    "edge_id": "cctv_moran_a1",
+    "wall_width_m": 6.4,
+    "obstacle_width_m": 2.388836314361602,
+    "effective_width_m": 4.011163685638398,
+    "detected_objects": [
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.9433797001838684,
+        "bbox": [
+          489.5013427734375,
+          187.94715881347656,
+          636.6263427734375,
+          347.4339599609375
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8858562707901001,
+        "bbox": [
+          692.0560302734375,
+          60.19859313964844,
+          743.3048095703125,
+          105.03057861328125
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.6485655903816223,
+        "bbox": [
+          588.935302734375,
+          114.3756103515625,
+          672.453857421875,
+          190.59967041015625
+        ]
+      },
+      {
+        "vehicle_class": "트럭",
+        "confidence": 0.4009217619895935,
+        "bbox": [
+          586.73779296875,
+          114.056396484375,
+          673.272216796875,
+          190.69259643554688
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.32647228240966797,
+        "bbox": [
+          674.8412475585938,
+          34.620731353759766,
+          709.4860229492188,
+          61.8873291015625
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.25249847769737244,
+        "bbox": [
+          782.3187255859375,
+          36.58146667480469,
+          825.9808349609375,
+          72.55772399902344
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
+    },
+    "confidence": 0.9999999866795348,
+    "measured_at": "2026-09-16T17:14:41.890661+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 2.5421537209454734,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-1",
+      "address": "성남동 4163번지",
+      "lat": 37.431987,
+      "lon": 127.128116,
+      "target_distance_m": 192.5,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "video",
+      "wall_width_source": "naver_map",
+      "width_reference_cctv_id": "cctv_4",
+      "wall_width_scope": "source_footage",
+      "calibration_source_cctv_id": "cctv_4",
+      "calibration_observations_available": 30,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [
+          "outside_calibration_depth"
+        ],
+        "pass_blocked": true
+      },
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a59",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000438.mp4",
+    "edge_id": "cctv_moran_a59",
+    "wall_width_m": 6.0,
+    "obstacle_width_m": 4.803731852959614,
+    "effective_width_m": 1.196268147040386,
+    "detected_objects": [
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.9456093311309814,
+        "bbox": [
+          383.47650146484375,
+          304.85321044921875,
+          637.5299682617188,
+          532.5347290039062
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.9114279747009277,
+        "bbox": [
+          575.750732421875,
+          212.32232666015625,
+          721.20654296875,
+          340.7777099609375
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8322491645812988,
+        "bbox": [
+          815.96484375,
+          139.73178100585938,
+          888.3607177734375,
+          200.35888671875
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.82185298204422,
+        "bbox": [
+          682.9517211914062,
+          152.02053833007812,
+          782.0613403320312,
+          246.35205078125
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.7277074456214905,
+        "bbox": [
+          768.7620849609375,
+          116.94955444335938,
+          817.5926513671875,
+          161.88778686523438
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.6400309801101685,
+        "bbox": [
+          720.240966796875,
+          139.01785278320312,
+          797.170166015625,
+          190.55197143554688
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.5703750252723694,
+        "bbox": [
+          792.68994140625,
+          87.58807373046875,
+          844.103759765625,
+          127.72329711914062
+        ]
+      },
+      {
+        "vehicle_class": "트럭",
+        "confidence": 0.4386036992073059,
+        "bbox": [
+          0.0,
+          305.80731201171875,
+          275.9919738769531,
+          717.6690063476562
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.39885398745536804,
+        "bbox": [
+          826.49560546875,
+          67.7808837890625,
+          864.1673583984375,
+          105.13406372070312
+        ]
+      },
+      {
+        "vehicle_class": "대형버스",
+        "confidence": 0.3129520118236542,
+        "bbox": [
+          0.344512939453125,
+          280.7254638671875,
+          274.865234375,
+          719.1549072265625
+        ]
+      },
+      {
+        "vehicle_class": "트럭",
+        "confidence": 0.2838689982891083,
+        "bbox": [
+          875.260986328125,
+          57.0047607421875,
+          1279.544189453125,
+          713.9483642578125
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "FAIL",
+      "pump-8": "FAIL"
+    },
+    "confidence": 1.6053041736398083e-07,
+    "measured_at": "2026-09-16T17:14:43.336389+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 1.9741951268051583,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-59",
+      "address": "성남동 4169",
+      "lat": 37.431098,
+      "lon": 127.129052,
+      "target_distance_m": 193.0,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "video",
+      "wall_width_source": "naver_map",
+      "width_reference_cctv_id": "cctv_5",
+      "wall_width_scope": "source_footage",
+      "calibration_source_cctv_id": "cctv_5",
+      "calibration_observations_available": 54,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [],
+        "pass_blocked": false
+      },
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
+    }
+  },
+  {
+    "cctv_id": "cctv_moran_a5",
+    "still_public_url": "/Users/yuganghyeon/orca/projects/FireWay/data/raw_images/cctv_atypical_road_000439.mp4",
+    "edge_id": "cctv_moran_a5",
+    "wall_width_m": 6.08,
+    "obstacle_width_m": 2.32611891072854,
+    "effective_width_m": 3.7538810892714602,
+    "detected_objects": [
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.8997935652732849,
+        "bbox": [
+          779.218505859375,
+          189.93218994140625,
+          906.9033203125,
+          329.83331298828125
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.807699978351593,
+        "bbox": [
+          487.8761291503906,
+          542.7545166015625,
+          748.1795654296875,
+          716.4041748046875
+        ]
+      },
+      {
+        "vehicle_class": "승용차",
+        "confidence": 0.590541660785675,
+        "bbox": [
+          816.4976806640625,
+          313.12774658203125,
+          1256.8504638671875,
+          566.5111694335938
+        ]
+      }
+    ],
+    "verdict": {
+      "pump-3.5": "UNCERTAIN",
+      "pump-8": "UNCERTAIN"
+    },
+    "confidence": 0.9999997080179075,
+    "measured_at": "2026-09-16T17:14:44.192484+00:00",
+    "method": "yolov11_homography_v9_motion_aware",
+    "calibration_error_m": 2.1638771678374047,
+    "source_meta": {
+      "scenario": "moran-oil-alley",
+      "source_csv_id": "중원성남-A-5",
+      "address": "성남동 4309번지",
+      "lat": 37.432279,
+      "lon": 127.126874,
+      "target_distance_m": 198.1,
+      "footage_note": "실주소 미촬영 — 다른 위치의 원본 영상·이미지와 해당 원본의 도로 폭(측정 또는 추정)을 시연용으로 배치",
+      "adapter": "video",
+      "calibration_source_cctv_id": "cctv_moran_a5",
+      "calibration_observations_available": 0,
+      "calibration_scale_version": "vehicle_width_over_pixels_native_masks_v3",
+      "measurement_quality": {
+        "flags": [],
+        "pass_blocked": false
+      },
+      "wall_width_source": "estimated_avg_of_similar_alleys",
+      "width_reference_cctv_id": "cctv_moran_a5",
+      "wall_width_scope": "source_footage",
+      "decision_policy": {
+        "mode": "demo_estimated_width",
+        "allow_estimated_wall_width": true
+      },
+      "measurement_status": "computed"
+    }
+  }
+]

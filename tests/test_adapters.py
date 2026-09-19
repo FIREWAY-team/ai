@@ -38,7 +38,7 @@ def test_read_from_file_builds_reading(monkeypatch, tmp_path):
     assert reading["still_public_url"] == image_path
     assert reading["wall_width_m"] == 4.2
     assert reading["verdict"] == {"pump-3.5": "PASS", "pump-8": "UNCERTAIN"}
-    assert reading["source_meta"] == {"adapter": "file"}
+    assert reading["source_meta"]["adapter"] == "file"
 
 
 def test_load_frame_raises_for_missing_file(tmp_path):
@@ -60,7 +60,7 @@ def test_read_from_http_builds_reading(monkeypatch):
     )
 
     assert reading["still_public_url"] == "https://example.internal/cam1/still.jpg"
-    assert reading["source_meta"] == {"adapter": "http"}
+    assert reading["source_meta"]["adapter"] == "http"
     assert reading["effective_width_m"] == 3.2
 
 
@@ -85,9 +85,11 @@ def test_read_from_file_looks_up_wall_width_m_by_cctv_id(monkeypatch, tmp_path):
     file_adapter.read_from_file(str(tmp_path / "frame.jpg"), cctv_id="cam_l1")
 
     assert captured["wall_width_m"] == 4.2
-    # target_y_px/camera_height_px도 명시 안 하면 이미지 크기에서 근사치를 잡는다
     assert captured["camera_height_px"] == 20
-    assert captured["target_y_px"] == 20 * 0.7
+    # target_y_px를 명시 안 하면 process_frame이 병목 지점을 자동으로 찾도록
+    # None을 그대로 넘긴다(2026-09-15부터 — find_narrowest_widths 참고). 화면의
+    # 고정 비율 지점만 보면 다른 깊이의 진짜 장애물을 놓칠 수 있어서 바뀌었다.
+    assert captured["target_y_px"] is None
 
 
 def test_read_from_rtsp_builds_reading(monkeypatch):
@@ -106,3 +108,39 @@ def test_read_from_rtsp_builds_reading(monkeypatch):
     assert reading["still_public_url"] is None
     assert reading["source_meta"]["adapter"] == "rtsp"
     assert reading["source_meta"]["rtsp_url"] == "rtsp://cam.internal/stream1"
+
+
+@pytest.mark.parametrize('failure', ['oversize', 'redirect', 'invalid_image', 'network'])
+def test_http_input_is_bounded_and_does_not_expose_url(monkeypatch, failure):
+    import requests
+    url = 'https://example.test/frame?X-Amz-Signature=secret'
+    class Response:
+        status_code = 302 if failure == 'redirect' else 200
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def iter_content(self, chunk_size):
+            yield b'x' * (17 if failure == 'oversize' else 1)
+    def get(*a, **kw):
+        assert kw['allow_redirects'] is False and kw['stream'] is True
+        if failure == 'network': raise requests.Timeout(url)
+        return Response()
+    monkeypatch.setattr(http_adapter.requests, 'get', get)
+    monkeypatch.setattr(http_adapter, 'MAX_IMAGE_BYTES', 16)
+    with pytest.raises(ValueError) as error:
+        http_adapter.fetch_frame(url)
+    assert 'secret' not in str(error.value)
+    assert 'example.test' not in str(error.value)
+
+
+def test_http_input_stream_decodes_valid_image(monkeypatch):
+    import cv2
+    import numpy as np
+    ok, encoded = cv2.imencode('.png', np.zeros((5, 6, 3), dtype=np.uint8))
+    assert ok
+    class Response:
+        status_code = 200
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def iter_content(self, chunk_size): yield encoded.tobytes()
+    monkeypatch.setattr(http_adapter.requests, 'get', lambda *a, **kw: Response())
+    assert http_adapter.fetch_frame('https://example.test/image').shape == (5, 6, 3)

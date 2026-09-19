@@ -23,9 +23,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from src.camera_registry import wall_width_quality_flags
 from goldenlane_vehicle_specs import load_vehicles_json, resolve_margin_m
 from src.inference import yolo
-from src.postprocess.passable_prob import build_reading_core, compute_widths
+from src.inference.homography import scale_estimates_with_history
+from src.inference.road_region import filter_road_detections
+from src.postprocess.passable_prob import build_reading_core, compute_widths, depth_quality_flags, find_narrowest_widths
 from src.schemas import ReadingCore
 
 
@@ -40,32 +43,64 @@ class FrameJudgeJob:
     camera_height_px: float
     vehicles_json: dict[str, float] | None = None
     margin_m: float | None = None
+    cctv_id: str | None = None
+    allow_estimated_wall_width: bool = False
 
 
 def process_frame(
     frame: np.ndarray,
     wall_width_m: float,
-    target_y_px: float,
+    target_y_px: float | None,
     camera_height_px: float,
     vehicles_json: dict[str, float] | None = None,
     margin_m: float | None = None,
+    cctv_id: str | None = None,
+    *,
+    allow_estimated_wall_width: bool = False,
 ) -> ReadingCore:
     """사진 한 장 → ReadingCore (스펙 2장 전체 파이프라인).
 
     wall_width_m은 카메라 등록 시 지도 실측으로 확정한 고정값
     (`configs/cameras.yaml`)을 호출부가 그대로 넘긴다.
+
+    target_y_px — 특정 지점을 명시하면 그 지점만 계산한다(기존 동작).
+    None이면(어댑터들의 기본값, 2026-09-15부터) find_narrowest_widths()로
+    화면 전체에서 가장 좁아지는 병목 지점을 자동으로 찾는다 — 실측 검증
+    중 발견: 화면 세로 70% 고정 지점만 보면, 그 지점과 다른 깊이에 있는
+    진짜 장애물(예: 주차된 차들)을 놓쳐서 실제로는 막힌 골목을 뻥 뚫린
+    것처럼(PASS) 오판할 수 있었다(cctv_4: obstacle 0.00m→병목탐색 시
+    4.60m). 소방차는 도로 전체를 지나야 하므로 한 지점만 보고 판정하면
+    안 된다는 게 애초 find_narrowest_widths()의 설계 의도였는데, 실제
+    호출부(어댑터)에 연결이 안 돼 있었던 걸 여기서 바로잡는다.
+
+    cctv_id를 주면 이 카메라에 누적된 기준 차량 관측치(calibration_store,
+    정확도개선방안 A-4 확장)를 같이 써서 스케일을 계산한다 — 자세한 내용은
+    compute_widths() 참고.
     """
     detections = yolo.detect_vehicles(frame)
+    # 빈 검출에서도 실제 입력 해상도를 검사한다. 출력 검출은 원본 그대로 유지.
+    road_detections = filter_road_detections(detections, cctv_id, frame.shape)
 
-    wall_width_m, obstacle_width_m, effective_width_m, calibration_error_m = compute_widths(
-        detections,
-        target_y_px,
-        camera_height_px,
-        wall_width_m,
-    )
+    if target_y_px is not None:
+        wall_width_m, obstacle_width_m, effective_width_m, calibration_error_m = compute_widths(
+            detections,
+            target_y_px,
+            camera_height_px,
+            wall_width_m,
+            cctv_id=cctv_id,
+        )
+    else:
+        wall_width_m, obstacle_width_m, effective_width_m, calibration_error_m, _bottleneck_y = (
+            find_narrowest_widths(detections, camera_height_px, wall_width_m, cctv_id=cctv_id)
+        )
 
     resolved_vehicles = vehicles_json if vehicles_json is not None else load_vehicles_json()
     resolved_margin = margin_m if margin_m is not None else resolve_margin_m()
+    estimates = scale_estimates_with_history(road_detections, camera_height_px, cctv_id)
+    quality_flags = depth_quality_flags(road_detections, estimates, camera_height_px, target_y_px)
+    quality_flags.extend(wall_width_quality_flags(
+        cctv_id, wall_width_m, allow_estimated_wall_width=allow_estimated_wall_width,
+    ))
     return build_reading_core(
         wall_width_m,
         obstacle_width_m,
@@ -74,6 +109,7 @@ def process_frame(
         resolved_vehicles,
         resolved_margin,
         calibration_error_m=calibration_error_m,
+        quality_flags=quality_flags,
     )
 
 
@@ -85,6 +121,8 @@ def _run_job(job: FrameJudgeJob) -> ReadingCore:
         job.camera_height_px,
         job.vehicles_json,
         job.margin_m,
+        job.cctv_id,
+        allow_estimated_wall_width=job.allow_estimated_wall_width,
     )
 
 

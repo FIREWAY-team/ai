@@ -1,9 +1,15 @@
-numpy
-opencv-python-headless
-ultralytics
-pyyaml
-requests
-boto3
+# 검증 기준: macOS arm64 / Python 3.13.5. 전체 의존성은 플랫폼별 lock 참조.
+numpy==2.5.2
+# ultralytics가 요구하는 배포판 하나만 설치해 cv2 중복 설치 방지.
+opencv-python==5.0.0.93
+ultralytics==8.4.144
+torch==2.14.0
+torchvision==0.29.0
+PyYAML==6.0.3
+requests==2.32.4
+boto3==1.43.89
 
 # dev
-pytest
+pytest==9.1.1
+
+awscrt==0.36.0
