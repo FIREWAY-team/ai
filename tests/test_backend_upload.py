@@ -36,9 +36,13 @@ def http(monkeypatch):
     return ticket, calls
 
 
+@pytest.mark.parametrize('response_style', ['backend', 'frontend_bff'])
 @pytest.mark.parametrize('suffix,content_type', [('.png', 'image/png'), ('.mp4', 'video/mp4')])
-def test_existing_upload_contract_and_server_key_preserved(http, tmp_path, suffix, content_type):
-    _, calls = http
+def test_existing_upload_contract_and_server_key_preserved(http, tmp_path, suffix, content_type, response_style):
+    ticket, calls = http
+    if response_style == 'frontend_bff':
+        ticket['uploadUrl'] = ticket.pop('upload_url')
+        ticket['expiresInSeconds'] = ticket.pop('expires_in_seconds')
     path = tmp_path / ('source' + suffix)
     path.write_bytes(b'media')
     result = upload.upload_via_backend(str(path), 'https://fireroad.shop/', 'private', 'ap-northeast-2')
@@ -84,7 +88,12 @@ def test_failed_upload_preserves_registry_and_hides_signature(http, monkeypatch,
     assert 'secret' not in str(error.value)
 
 
-def test_register_uses_existing_api_without_aws_sdk_or_changing_source(http, monkeypatch, tmp_path):
+@pytest.mark.parametrize('response_style', ['backend', 'frontend_bff'])
+def test_register_uses_existing_api_without_aws_sdk_or_changing_source(http, monkeypatch, tmp_path, response_style):
+    ticket, _ = http
+    if response_style == 'frontend_bff':
+        ticket['uploadUrl'] = ticket.pop('upload_url')
+        ticket['expiresInSeconds'] = ticket.pop('expires_in_seconds')
     path = tmp_path / 'a.mp4'; path.write_bytes(b'video')
     registry = tmp_path / 'camera.yaml'
     camera = {'still_url': str(path), 'wall_width_m': 6.08,
@@ -106,3 +115,34 @@ def test_size_policy_checked_before_http(http, tmp_path):
     with pytest.raises(ValueError):
         upload.upload_via_backend(str(path), 'https://fireroad.shop', 'private', 'ap-northeast-2')
     assert not calls
+
+
+def test_credentials_in_base_url_rejected_before_network(http, tmp_path):
+    _, calls = http
+    path = tmp_path / 'a.png'; path.write_bytes(b'media')
+    with pytest.raises(ValueError):
+        upload.upload_via_backend(str(path), 'https://user:secret@fireroad.shop', 'private', 'ap-northeast-2')
+    assert not calls
+
+
+@pytest.mark.parametrize('field,value', [('uploadUrl', 'https://other.test/upload'),
+                                       ('expiresInSeconds', 0), ('expiresInSeconds', True)])
+def test_bff_invalid_ticket_rejected_before_put(http, tmp_path, field, value):
+    ticket, calls = http
+    ticket['uploadUrl'] = ticket.pop('upload_url')
+    ticket['expiresInSeconds'] = ticket.pop('expires_in_seconds')
+    ticket[field] = value
+    path = tmp_path / 'a.png'; path.write_bytes(b'media')
+    with pytest.raises(upload.BackendUploadError):
+        upload.upload_via_backend(str(path), 'https://fireroad.shop', 'private', 'ap-northeast-2')
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize('field,value', [('uploadUrl', 'https://other.test/upload'), ('expiresInSeconds', 200)])
+def test_conflicting_response_aliases_rejected(http, tmp_path, field, value):
+    ticket, calls = http
+    ticket[field] = value
+    path = tmp_path / 'a.png'; path.write_bytes(b'media')
+    with pytest.raises(upload.BackendUploadError):
+        upload.upload_via_backend(str(path), 'https://fireroad.shop', 'private', 'ap-northeast-2')
+    assert len(calls) == 1

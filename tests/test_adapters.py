@@ -108,3 +108,39 @@ def test_read_from_rtsp_builds_reading(monkeypatch):
     assert reading["still_public_url"] is None
     assert reading["source_meta"]["adapter"] == "rtsp"
     assert reading["source_meta"]["rtsp_url"] == "rtsp://cam.internal/stream1"
+
+
+@pytest.mark.parametrize('failure', ['oversize', 'redirect', 'invalid_image', 'network'])
+def test_http_input_is_bounded_and_does_not_expose_url(monkeypatch, failure):
+    import requests
+    url = 'https://example.test/frame?X-Amz-Signature=secret'
+    class Response:
+        status_code = 302 if failure == 'redirect' else 200
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def iter_content(self, chunk_size):
+            yield b'x' * (17 if failure == 'oversize' else 1)
+    def get(*a, **kw):
+        assert kw['allow_redirects'] is False and kw['stream'] is True
+        if failure == 'network': raise requests.Timeout(url)
+        return Response()
+    monkeypatch.setattr(http_adapter.requests, 'get', get)
+    monkeypatch.setattr(http_adapter, 'MAX_IMAGE_BYTES', 16)
+    with pytest.raises(ValueError) as error:
+        http_adapter.fetch_frame(url)
+    assert 'secret' not in str(error.value)
+    assert 'example.test' not in str(error.value)
+
+
+def test_http_input_stream_decodes_valid_image(monkeypatch):
+    import cv2
+    import numpy as np
+    ok, encoded = cv2.imencode('.png', np.zeros((5, 6, 3), dtype=np.uint8))
+    assert ok
+    class Response:
+        status_code = 200
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def iter_content(self, chunk_size): yield encoded.tobytes()
+    monkeypatch.setattr(http_adapter.requests, 'get', lambda *a, **kw: Response())
+    assert http_adapter.fetch_frame('https://example.test/image').shape == (5, 6, 3)

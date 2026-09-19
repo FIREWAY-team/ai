@@ -26,7 +26,7 @@ def upload_via_backend(local_path: str, base_url: str, bucket: str, region: str)
     if not 0 < size <= limit:
         raise ValueError('기존 업로드 크기 제한을 벗어났습니다 (사진 5MiB, 영상 50MiB)')
     parsed_base = urlsplit(base_url)
-    if parsed_base.scheme != 'https' or not parsed_base.netloc or parsed_base.query or parsed_base.fragment:
+    if parsed_base.scheme != 'https' or not parsed_base.netloc or parsed_base.query or parsed_base.fragment or parsed_base.username is not None or parsed_base.password is not None:
         raise ValueError('백엔드 HTTPS 기본 주소가 필요합니다')
     digest = hashlib.sha256()
     with path.open('rb') as source:
@@ -43,7 +43,13 @@ def upload_via_backend(local_path: str, base_url: str, bucket: str, region: str)
                 raise BackendUploadError('업로드 URL 응답이 JSON이 아닙니다') from None
         if not isinstance(ticket, dict):
             raise BackendUploadError('업로드 URL 응답 형식 불일치')
-        key, url, ttl = ticket.get('key'), ticket.get('upload_url'), ticket.get('expires_in_seconds')
+        # BE 직접 응답은 snake_case, 프런트 BFF 응답은 camelCase다.
+        for snake, camel in (('upload_url', 'uploadUrl'), ('expires_in_seconds', 'expiresInSeconds')):
+            if snake in ticket and camel in ticket and ticket[snake] != ticket[camel]:
+                raise BackendUploadError('업로드 URL 응답의 필드 값이 충돌합니다')
+        key = ticket.get('key')
+        url = ticket.get('upload_url', ticket.get('uploadUrl'))
+        ttl = ticket.get('expires_in_seconds', ticket.get('expiresInSeconds'))
         if not isinstance(key, str) or not re.fullmatch(r'uploads/\d{4}-\d{2}-\d{2}/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', key):
             raise BackendUploadError('백엔드 발급 key 형식 불일치')
         if not isinstance(url, str) or type(ttl) is not int or ttl <= 0:
