@@ -1,0 +1,17 @@
+{
+  "scenario_id": "moran-virtual-width-v1",
+  "effective_widths_m": {
+    "cctv_moran_a41": 3.2,
+    "cctv_moran_a1": 3.2,
+    "cctv_moran_a17": 3.2,
+    "cctv_moran_a49": 3.2,
+    "cctv_moran_a21": 2.8,
+    "cctv_moran_a34": 2.6,
+    "cctv_moran_a39": 2.4,
+    "cctv_moran_a5": 2.4,
+    "cctv_moran_a10": 2.0,
+    "cctv_moran_a18": 2.0,
+    "cctv_moran_a59": 2.0,
+    "cctv_moran_a54": null
+  }
+}

@@ -26,6 +26,20 @@ from tests.helpers import make_detection
 VEHICLES_JSON = {"pump-3.5": 2.3, "pump-8": 2.5}
 
 
+def test_vehicles_json_matches_backend_fleet():
+    from goldenlane_vehicle_specs import load_vehicles_json
+
+    vehicles = load_vehicles_json()
+    assert vehicles == {
+        "pump-3.5": 2.3, "pump-8": 2.5, "pump-15": 2.9, "aerial-25": 2.5,
+    }
+    results, _ = build_reading_verdict(3.0, vehicles, 0.25)
+    assert results == {
+        "pump-3.5": "PASS", "pump-8": "PASS",
+        "pump-15": "UNCERTAIN", "aerial-25": "PASS",
+    }
+
+
 def irregular_vehicle():
     det = make_detection("승용차", .9, 60, 70, 151, 191, shape=(300, 300))
     mask = np.zeros((300, 300), dtype=np.uint8)
